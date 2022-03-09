@@ -1,4 +1,4 @@
-from tkinter import NE
+#from tkinter import NE
 from telegram.ext import Updater, CommandHandler, Filters, MessageHandler
 from telegram import ReplyKeyboardMarkup
 from glob import glob
@@ -20,7 +20,7 @@ def read_words():
 
 
 def compute_emo_rate(msg):
-    del_list = '.,;!?:`'
+    del_list = '.,;!?:`()'
     p_msg = msg.strip().lower()
     trantab = p_msg.maketrans('', '', del_list)
     p_msg = p_msg.translate(trantab)
