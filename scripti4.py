@@ -150,7 +150,9 @@ def weather(city: str):
 def sendweather(bot, update):
     bot.message.reply_text('Напиши название города')
     time.sleep(1)
-    city = bot.message.text
+    city = 'Москва'
+    if bot.message.text.strip() != '':
+        city = bot.message.text.strip()
     try:
         w = weather(city)
         bot.message.reply_text(f'В городе {city} сейчас {round(w[0]["temp"])}')
