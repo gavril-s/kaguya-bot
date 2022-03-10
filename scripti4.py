@@ -34,6 +34,8 @@ MONTH = ['января', 'февраля', 'марта', 'апреля', 'мая
 MOOD = 0
 MOOD_FADING = 0.75
 
+MORPH = pymorphy2.MorphAnalyzer()
+
 def read_words():
     f = io.open('words.txt', mode='r', encoding='utf-8')
     for line in f:
@@ -43,8 +45,8 @@ def read_words():
     f.close()
 
 def norm_word(x):
-    morph = pymorphy2.MorphAnalyzer()
-    p = morph.parse(x)[0]
+    global MORPH
+    p = MORPH.parse(x)[0]
     return p.normal_form
 
 def compute_emo_rate(msg):
