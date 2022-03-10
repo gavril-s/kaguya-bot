@@ -7,7 +7,7 @@ import random
 from datetime import date
 import datetime
 from pyowm import OWM
-from pyowm.utils.config import get_default_config
+from pyowm.utils import config as cfg
 
 WORDS = dict()
 POSITIVE_REPLIES = ['Хорошо, сенпай^^','Да, согласна)','Ты такой милашка','Ага)','Хорошо)', 'Desu-desu :3']
@@ -43,13 +43,26 @@ def sms(bot, update):
     #update.bot.send_sticker(chat_id=update.message.chat_id, sticker='CAADAgADOQADfyesDlKEqOOd72VKAg')
 
 def reply(bot, update):
-    if compute_emo_rate(bot.message.text) < 0:
-        rep = NEGATIVE_REPLIES[random.randint(0, len(NEGATIVE_REPLIES) - 1)]
+    if random.random() <= 0.05:
+        bot.message.reply_text('Когда ты мне пишешь...')
+        time.sleep(1)
+        bot.message.reply_text('Твоё сообщение')
+        time.sleep(1)
+        bot.message.reply_text('И я просто выхожу на хаха')
+        time.sleep(1)
+        bot.message.reply_text('Я просто ссу себе в штаныыы')
+        time.sleep(1)
+        bot.message.reply_text('Ссу себе в штаны')
+        time.sleep(1)
+        bot.message.reply_text('Это невероятно')
     else:
-        rep = POSITIVE_REPLIES[random.randint(0, len(POSITIVE_REPLIES) - 1)]
-    print(bot.message.text)
-    time.sleep(1)
-    bot.message.reply_text(rep)
+        if compute_emo_rate(bot.message.text) < 0:
+            rep = NEGATIVE_REPLIES[random.randint(0, len(NEGATIVE_REPLIES) - 1)]
+        else:
+            rep = POSITIVE_REPLIES[random.randint(0, len(POSITIVE_REPLIES) - 1)]
+        print(bot.message.text)
+        time.sleep(1)
+        bot.message.reply_text(rep)
 
 
 def whoami(bot, update):
@@ -141,7 +154,7 @@ def getlocation(lat, lon):
     return url
 
 def weather(city: str):
-    config_dict = get_default_config()
+    config_dict = cfg.get_default_config()
     config_dict['language'] = 'ru' 
     owm = OWM('b14672eeb4d058d2334c4b97a4c84aa0', config_dict)
     mgr = owm.weather_manager()
@@ -163,7 +176,7 @@ def sendweather(bot, update):
 
 def main():
     read_words()
-    bot = Updater("5260290537:AAFKwTweXBj02R7Y2Fog6nu6nU9obCIEnn8", use_context=True)
+    bot = Updater("5260290537:AAGWg9J4a5dZDqsrq3MG3fejuBvD-0tasOA", use_context=True)
     bot.dispatcher.add_handler(CommandHandler('start', sms))
     bot.dispatcher.add_handler(MessageHandler(Filters.regex('Кто я сегодня?'), whoami))
     bot.dispatcher.add_handler(MessageHandler(Filters.regex('Скинь ножки'), sendlegs))
