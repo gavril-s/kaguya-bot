@@ -31,8 +31,8 @@ BYE = ['споки', 'спокойной ночи', 'а ну спать', 'до 
 HI = ['привет', 'ку', 'здарова', 'доброе утро']
 MONTH = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря']
 
-MOOD = 0
-MOOD_FADING = 0.75
+MOODS = {}
+MOOD_FADING = 0.6
 
 MORPH = pymorphy2.MorphAnalyzer()
 
@@ -64,8 +64,6 @@ def compute_emo_rate(msg):
     if len(msg_words) == 0:
         if ')' in msg and '(' not in msg:
             return 1
-        elif '(' in msg and ')' not in msg:
-            return -1
         else:
             return 0
     return rate / len(msg_words)
@@ -80,10 +78,13 @@ def sms(bot, update):
 
 def reply(bot, update):
     print('MESSAGE: ', bot.message.text)
-    global MOOD
+    global MOODS
     global MOOD_FADING
-    MOOD = MOOD_FADING * MOOD + compute_emo_rate(bot.message.text)
-    print('MOOD: ', MOOD)
+    usr_id = bot.message.from_user['id']
+    if usr_id not in MOODS:
+        MOODS[usr_id] = 0
+    MOODS[usr_id] = MOOD_FADING * MOODS[usr_id] + compute_emo_rate(bot.message.text)
+    print('MOOD: ', MOODS[usr_id])
     if random.random() <= 0.01:
         bot.message.reply_text('Когда ты мне пишешь...')
         time.sleep(1)
@@ -103,7 +104,7 @@ def reply(bot, update):
             rep = GOOD_DAY[random.randint(0, len(GOOD_DAY) - 1)]
         elif bot.message.text.lower() in BYE:
             rep = GOOD_NIGHT[random.randint(0, len(GOOD_NIGHT) - 1)]
-        elif MOOD < 0:
+        elif MOODS[usr_id] < 0:
             if '?' in bot.message.text:
                 rep = NEGATIVE_QUIESTION_ANSWERS[random.randint(0, len(NEGATIVE_QUIESTION_ANSWERS) - 1)]
             else:
