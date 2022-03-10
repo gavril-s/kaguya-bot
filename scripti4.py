@@ -160,7 +160,6 @@ def sendday(bot, update):
     print(bot.message.text)
     bot.message.reply_text('Хммм, дай-ка подумать')
     pic = ''
-    day = date.today()
     weekday = datetime.datetime.today().weekday()
     if weekday == 0:
         pic = 'DAY/monday.jpg'
@@ -179,7 +178,7 @@ def sendday(bot, update):
     time.sleep(1)
     update.bot.send_photo(chat_id=bot.message.chat.id, photo=open(pic, 'rb'))
     time.sleep(1)
-    bot.message.reply_text('Это,кстати, {} {}. Хорошего дня, {})'.format(day[2], MONTH[day[1]-1], bot.message.chat.first_name))
+    bot.message.reply_text('Это,кстати, {} {}. Хорошего дня, {})'.format(date.today.day, date.today.month, bot.message.chat.first_name))
 
 def getlocation(lat, lon):
     url = f"https://yandex.ru/pogoda/moscow?lat={lat}&lon={lon}"
