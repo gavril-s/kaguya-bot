@@ -32,7 +32,7 @@ HI = ['привет', 'ку', 'здарова', 'доброе утро']
 MONTH = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря']
 
 MOODS = {}
-MOOD_FADING = 0.6
+MOOD_FADING = 0.69
 
 MORPH = pymorphy2.MorphAnalyzer()
 
@@ -117,7 +117,6 @@ def reply(bot, update):
         time.sleep(1)
         bot.message.reply_text(rep)
 
-
 def whoami(bot, update):
     print('MESSAGE: ', bot.message.text)
     replys = ["долбаеб", "сын шалавы ебаной", 'уебан сраный', 'гандон штопаный', 'ублюдок недоебаный', 'блядский мудак',
@@ -126,7 +125,6 @@ def whoami(bot, update):
     rep = replys[random.randint(0, len(replys) - 1)]
     time.sleep(1)
     bot.message.reply_text('{}, ты сегодня такой {}'.format(bot.message.chat.first_name, rep))
-
 
 def sendlegs(bot, update):
     print('MESSAGE: ', bot.message.text)
