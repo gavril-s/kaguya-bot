@@ -8,6 +8,7 @@ from datetime import date
 import datetime
 from pyowm import OWM
 from pyowm.utils import config as cfg
+import io
 
 WORDS = dict()
 POSITIVE_QUESTION_ANSWERS = ['Да, сенпай!', 'Да)', 'Ага', 'Согласна))', 'Так точно!', 'Может быть)', 'Проверь и узнаешь)', 'Скорее да',
@@ -30,7 +31,7 @@ HI = ['Привет', 'Ку', 'Здарова', 'Доброе утро']
 MONTH = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря']
 
 def read_words():
-    f = open('words.txt', 'r')
+    f = io.open('words.txt', mode='r', encoding='utf-8')
     for line in f:
         tmp = line.split()
         if tmp[1] != '0':
