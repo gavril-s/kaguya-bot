@@ -55,6 +55,9 @@ def compute_emo_rate(msg):
     trantab = p_msg.maketrans('', '', del_list)
     p_msg = p_msg.translate(trantab)
 
+    if p_msg == 'прости':
+        return 1
+
     msg_words = p_msg.split()
     rate = 0
     for word in msg_words:
