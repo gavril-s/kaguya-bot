@@ -1,13 +1,14 @@
 from telegram.ext import Updater, CommandHandler, Filters, MessageHandler
 from telegram import ReplyKeyboardMarkup
-from glob import glob
-import time
+from pyowm import OWM
+from pyowm.utils import config as cfg
+import pymorphy2
 from random import choice
 import random
 from datetime import date
 import datetime
-from pyowm import OWM
-from pyowm.utils import config as cfg
+import time
+from glob import glob
 import io
 
 WORDS = dict()
@@ -30,13 +31,21 @@ BYE = ['споки', 'спокойной ночи', 'а ну спать', 'до 
 HI = ['Привет', 'Ку', 'Здарова', 'Доброе утро']
 MONTH = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря']
 
+MOOD = 0
+MOOD_FADING = 0.75
+
 def read_words():
     f = io.open('words.txt', mode='r', encoding='utf-8')
     for line in f:
         tmp = line.split()
-        if tmp[1] != '0':
+        if tmp[1] != '0' and tmp[0] not in WORDS:
             WORDS[tmp[0]] = int(tmp[1])
     f.close()
+
+def norm_word(x):
+    morph = pymorphy2.MorphAnalyzer()
+    p = morph.parse(x)[0]
+    return p.normal_form
 
 def compute_emo_rate(msg):
     del_list = '.,;!?:`()'
@@ -47,12 +56,20 @@ def compute_emo_rate(msg):
     msg_words = p_msg.split()
     rate = 0
     for word in msg_words:
-        if word in WORDS:
-            rate += WORDS[word]
-    return rate
+        norm = norm_word(word)
+        if norm in WORDS:
+            rate += WORDS[norm]
+    if len(msg_words) == 0:
+        if ')' in msg and '(' not in msg:
+            return 1
+        elif '(' in msg and ')' not in msg:
+            return -1
+        else:
+            return 0
+    return rate / len(msg_words)
 
 def sms(bot, update):
-    print(bot.message.text)
+    print('MESSAGE: ', bot.message.text)
     keyboard = ReplyKeyboardMarkup([['Скинь ножки', 'Какой сегодня день?'], ['Кто я сегодня?', 'Когда новый сезон?'], ['Какая погода сейчас?']], resize_keyboard=True)
     bot.message.reply_text('Охае, {}!'.format(bot.message.chat.first_name))
     time.sleep(1)
@@ -60,7 +77,11 @@ def sms(bot, update):
     #update.bot.send_sticker(chat_id=update.message.chat_id, sticker='CAADAgADOQADfyesDlKEqOOd72VKAg')
 
 def reply(bot, update):
-    print(bot.message.text)
+    print('MESSAGE: ', bot.message.text)
+    global MOOD
+    global MOOD_FADING
+    MOOD = MOOD_FADING * MOOD + compute_emo_rate(bot.message.text)
+    print('MOOD: ', MOOD)
     if random.random() <= 0.01:
         bot.message.reply_text('Когда ты мне пишешь...')
         time.sleep(1)
@@ -80,7 +101,7 @@ def reply(bot, update):
             rep = GOOD_DAY[random.randint(0, len(GOOD_DAY) - 1)]
         elif bot.message.text.lower() in BYE:
             rep = GOOD_NIGHT[random.randint(0, len(GOOD_NIGHT) - 1)]
-        elif compute_emo_rate(bot.message.text) < 0:
+        elif MOOD < 0:
             if '?' in bot.message.text:
                 rep = NEGATIVE_QUIESTION_ANSWERS[random.randint(0, len(NEGATIVE_QUIESTION_ANSWERS) - 1)]
             else:
@@ -95,7 +116,7 @@ def reply(bot, update):
 
 
 def whoami(bot, update):
-    print(bot.message.text)
+    print('MESSAGE: ', bot.message.text)
     replys = ["долбаеб", "сын шалавы ебаной", 'уебан сраный', 'гандон штопаный', 'ублюдок недоебаный', 'блядский мудак',
               'пидорас', 'уёбак', 'конченный хуесос', 'дифичент ебаный', 'хуепутало', 'норм чел', 'котик', 'милаха', 'няша', 'классный',
               'приятный']
@@ -105,7 +126,7 @@ def whoami(bot, update):
 
 
 def sendlegs(bot, update):
-    print(bot.message.text)
+    print('MESSAGE: ', bot.message.text)
     list = glob('LEGS/*')
     pic = choice(list)
     time.sleep(1)
@@ -116,7 +137,7 @@ def sendlegs(bot, update):
     bot.message.reply_text('Надеюсь, тебе понравилось)')
 
 def when3season(bot, update):
-    print(bot.message.text)
+    print('MESSAGE: ', bot.message.text)
     now = date.today()
     ser_1 = date(2022, 4, 9)
     ser_2 = date(2022, 4, 16)
@@ -157,7 +178,7 @@ def when3season(bot, update):
         bot.message.reply_text('https://jut.su/kaguya-sama/')
 
 def sendday(bot, update):
-    print(bot.message.text)
+    print('MESSAGE: ', bot.message.text)
     bot.message.reply_text('Хммм, дай-ка подумать')
     pic = ''
     weekday = datetime.datetime.today().weekday()
@@ -178,7 +199,7 @@ def sendday(bot, update):
     time.sleep(1)
     update.bot.send_photo(chat_id=bot.message.chat.id, photo=open(pic, 'rb'))
     time.sleep(1)
-    bot.message.reply_text('Это,кстати, {} {}. Хорошего дня, {})'.format(date.today.day, date.today.month, bot.message.chat.first_name))
+    bot.message.reply_text('Это,кстати, {} {}. Хорошего дня, {})'.format(date.today().day, date.today().month, bot.message.chat.first_name))
 
 def getlocation(lat, lon):
     url = f"https://yandex.ru/pogoda/moscow?lat={lat}&lon={lon}"
@@ -196,6 +217,7 @@ def weather(city: str):
     return temp, loc
 
 def sendweather(bot, update):
+    print('MESSAGE: ', bot.message.text)
     #bot.message.reply_text('Напиши название города')
     time.sleep(1)
     city = 'Москва'#bot.message.text
