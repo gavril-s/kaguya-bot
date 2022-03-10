@@ -7,16 +7,18 @@ import random
 from datetime import date
 import datetime
 from pyowm import OWM
+from pyowm.utils.config import get_default_config
 
 WORDS = dict()
-POSITIVE_REPLIES = ['Хорошо, сенпаи^^','Да, согласна)','Ты такой милашка','Ага)','Хорошо)', 'Desu-desu :3']
+POSITIVE_REPLIES = ['Хорошо, сенпай^^','Да, согласна)','Ты такой милашка','Ага)','Хорошо)', 'Desu-desu :3']
 NEGATIVE_REPLIES = ['Чеел','Иди нахуй','Эмм','Лол', 'Не пиши сюда больше, бака']
 
 def read_words():
     f = open('words.txt', 'r')
     for line in f:
         tmp = line.split()
-        WORDS[tmp[0]] = int(tmp[1])
+        if tmp[1] != 0:
+            WORDS[tmp[0]] = int(tmp[1])
     f.close()
 
 def compute_emo_rate(msg):
@@ -34,7 +36,7 @@ def compute_emo_rate(msg):
 
 def sms(bot, update):
     print(bot.message.text)
-    keyboard = ReplyKeyboardMarkup([['Скинь ножки', 'Какой сегодня день?'], ['Кто я сегодня?', 'Когда новый сезон?']])
+    keyboard = ReplyKeyboardMarkup([['Скинь ножки', 'Какой сегодня день?'], ['Кто я сегодня?', 'Когда новый сезон?'], ['Какая погода сейчас?']])
     bot.message.reply_text('Охае, {}!'.format(bot.message.chat.first_name))
     time.sleep(1)
     bot.message.reply_text("Меня зовут Кагуя Синомия. Чем могу помочь?", reply_markup=keyboard)
@@ -139,23 +141,25 @@ def getlocation(lat, lon):
     return url
 
 def weather(city: str):
-    owm = OWM('b14672eeb4d058d2334c4b97a4c84aa0')
+    config_dict = get_default_config()
+    config_dict['language'] = 'ru' 
+    owm = OWM('b14672eeb4d058d2334c4b97a4c84aa0', config_dict)
     mgr = owm.weather_manager()
     obs = mgr.weather_at_place(city)
     weather = obs.weather
     loc = getlocation(obs.location.lat, obs.location.lon)
-    temp = weather.temerature("celsius")
+    temp = weather.temperature("celsius")
     return temp, loc
 
 def sendweather(bot, update):
-    bot.message.reply_text('Напиши название города')
+    #bot.message.reply_text('Напиши название города')
     time.sleep(1)
-    city = bot.message.text
-    try:
-        w = weather(city)
-        bot.message.reply_text(f'В городе {city} сейчас {round(w[0]["temp"])}')
-    except Exception:
-        bot.message.reply_text('А этот город вообще существует, дурачье?')
+    city = 'Москва'#bot.message.text
+    #try:
+    w = weather(city)
+    bot.message.reply_text('В городе ' + city + ' сейчас  ' + str(round(w[0]["temp"])) + '° C')
+    #except Exception:
+    #    bot.message.reply_text('А этот город вообще существует, дурачье?')
 
 def main():
     read_words()
