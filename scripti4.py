@@ -17,7 +17,7 @@ def read_words():
     f = open('words.txt', 'r')
     for line in f:
         tmp = line.split()
-        if tmp[1] != 0:
+        if tmp[1] != '0':
             WORDS[tmp[0]] = int(tmp[1])
     f.close()
 
