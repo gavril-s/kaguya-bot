@@ -10,8 +10,13 @@ from pyowm import OWM
 from pyowm.utils import config as cfg
 
 WORDS = dict()
-POSITIVE_REPLIES = ['Хорошо, сенпай^^','Да, согласна)','Ты такой милашка','Ага)','Хорошо)', 'Desu-desu :3']
-NEGATIVE_REPLIES = ['Чеел','Иди нахуй','Эмм','Лол', 'Не пиши сюда больше, бака']
+POSITIVE_QUESTION_ANSWERS = ['Да, сенпай!', 'Да)', 'Ага', 'Согласна))', 'Так точно!', 'Может быть)', 'Проверь и узнаешь)', 'Скорее да'
+                             'Нет, сенпай', 'Нет!', 'Неа', 'Не-не-не', 'Я стесняюсь отвечать на такие вопросы//','Нет, ты что)']
+NEGATIVE_QUIESTION_ANSWERS = ['Да и что', 'Ну да.', 'Ага.', 'Чел...', 'Нет', 'Сходи нахуй', 'Еблан...', 
+                              'Как такое вообще могло прийти тебе в голову??', 'Ты поехавший ублюдок...']
+POSITIVE_REPLIES = ['Ты такой милашка', 'Desu-desu :3', 'Буду твоей вайфу)', 'Так', 'А что было дальше?', 'Мм', 'Интересно']
+NEGATIVE_REPLIES = ['Чеел', 'Иди нахуй', 'Эмм', 'Лол', 'Не пиши сюда больше, ебло', 'Ты подзалупное чудовище, как тебя вообще мать родила на свет', 
+                    'Просто пиздец...', 'Ну ты и еблан']
 
 def read_words():
     f = open('words.txt', 'r')
@@ -36,19 +41,22 @@ def compute_emo_rate(msg):
 
 def sms(bot, update):
     print(bot.message.text)
-    keyboard = ReplyKeyboardMarkup([['Скинь ножки', 'Какой сегодня день?'], ['Кто я сегодня?', 'Когда новый сезон?'], ['Какая погода сейчас?']])
+    keyboard = ReplyKeyboardMarkup([['Скинь ножки', 'Какой сегодня день?'], ['Кто я сегодня?', 'Когда новый сезон?'], ['Какая погода сейчас?']], resize_keyboard=True)
     bot.message.reply_text('Охае, {}!'.format(bot.message.chat.first_name))
     time.sleep(1)
     bot.message.reply_text("Меня зовут Кагуя Синомия. Чем могу помочь?", reply_markup=keyboard)
     #update.bot.send_sticker(chat_id=update.message.chat_id, sticker='CAADAgADOQADfyesDlKEqOOd72VKAg')
 
 def reply(bot, update):
+    print(bot.message.text)
     if random.random() <= 0.05:
         bot.message.reply_text('Когда ты мне пишешь...')
         time.sleep(1)
         bot.message.reply_text('Твоё сообщение')
         time.sleep(1)
         bot.message.reply_text('И я просто выхожу на хаха')
+        time.sleep(1)
+        bot.message.reply_text('Это так забавно мне')
         time.sleep(1)
         bot.message.reply_text('Я просто ссу себе в штаныыы')
         time.sleep(1)
@@ -57,10 +65,15 @@ def reply(bot, update):
         bot.message.reply_text('Это невероятно')
     else:
         if compute_emo_rate(bot.message.text) < 0:
-            rep = NEGATIVE_REPLIES[random.randint(0, len(NEGATIVE_REPLIES) - 1)]
+            if '?' in bot.message.text:
+                rep = NEGATIVE_QUIESTION_ANSWERS[random.randint(0, len(NEGATIVE_QUIESTION_ANSWERS) - 1)]
+            else:
+                rep = NEGATIVE_REPLIES[random.randint(0, len(NEGATIVE_REPLIES) - 1)]
         else:
-            rep = POSITIVE_REPLIES[random.randint(0, len(POSITIVE_REPLIES) - 1)]
-        print(bot.message.text)
+            if '?' in bot.message.text:
+                rep = POSITIVE_QUESTION_ANSWERS[random.randint(0, len(POSITIVE_QUESTION_ANSWERS) - 1)]
+            else:
+                rep = POSITIVE_REPLIES[random.randint(0, len(POSITIVE_REPLIES) - 1)]
         time.sleep(1)
         bot.message.reply_text(rep)
 
@@ -68,7 +81,7 @@ def reply(bot, update):
 def whoami(bot, update):
     print(bot.message.text)
     replys = ["долбаеб", "сын шалавы ебаной", 'уебан сраный', 'гандон штопаный', 'ублюдок недоебаный', 'блядский мудак',
-              'пидорас', 'уёбак', 'конченный хуесос', 'дифичент ебаный', 'хуепутало']
+              'пидорас', 'уёбак', 'конченный хуесос', 'дифичент ебаный', 'хуепутало', 'норм чел', 'котик']
     rep = replys[random.randint(0, len(replys) - 1)]
     time.sleep(1)
     bot.message.reply_text('{}, ты сегодня такой {}'.format(bot.message.chat.first_name, rep))
@@ -101,7 +114,7 @@ def when3season(bot, update):
         time.sleep(1)
         update.bot.send_photo(chat_id=bot.message.chat.id, photo=open('NEWSEASON/notyet.png', 'rb'))
         time.sleep(1)
-        bot.message.reply_text('Но как только он выйдет, я обязательно тебе сообщу')
+        bot.message.reply_text('Но как только он выйдет, я обязательно тебе сообщу)')
     else:
         if ser_7 <= now:
             ser = 7
@@ -118,7 +131,7 @@ def when3season(bot, update):
         elif ser_1 <= now:
             ser = 1
 
-        bot.message.reply_text('Ура, вышла серия {}'.format(ser))
+        bot.message.reply_text('Ура, вышла серия {}!'.format(ser))
         time.sleep(1)
         update.bot.send_photo(chat_id=bot.message.chat.id, photo=open('NEWSEASON/out.png', 'rb'))
         time.sleep(1)
@@ -129,20 +142,21 @@ def when3season(bot, update):
 def sendday(bot, update):
     print(bot.message.text)
     bot.message.reply_text('Хммм, дай-ка подумать')
-    pic = 0
-    if datetime.datetime.today().weekday() == 0:
+    pic = ''
+    weekday = datetime.datetime.today().weekday()
+    if weekday == 0:
         pic = 'DAY/monday.jpg'
-    elif datetime.datetime.today().weekday() == 1:
+    elif weekday == 1:
         pic = 'DAY/tuesday.jpg'
-    elif datetime.datetime.today().weekday() == 2:
+    elif weekday == 2:
         pic = 'DAY/wednesday.jpg'
-    elif datetime.datetime.today().weekday() == 3:
+    elif weekday == 3:
         pic = 'DAY/thursday.jpg'
-    elif datetime.datetime.today().weekday() == 4:
+    elif weekday == 4:
         pic = 'DAY/friday.jpg'
-    elif datetime.datetime.today().weekday() == 5:
+    elif weekday == 5:
         pic = 'DAY/saturday.jpg'
-    elif datetime.datetime.today().weekday() == 6:
+    elif weekday == 6:
         pic = 'DAY/sunday.jpg'
     time.sleep(1)
     update.bot.send_photo(chat_id=bot.message.chat.id, photo=open(pic, 'rb'))
