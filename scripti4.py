@@ -1,3 +1,4 @@
+from re import S
 from telegram.ext import Updater, CommandHandler, Filters, MessageHandler
 from telegram import ReplyKeyboardMarkup
 from pyowm import OWM
@@ -24,6 +25,9 @@ NEGATIVE_REPLIES = ['Чеел', 'Иди нахуй', 'Эмм', 'Лол', 'Не �
                     'Просто пиздец...', 'Ну ты и еблан', 'Бака!!!', 'Дурачье', 'Пипец', 'Совсем афигевший?', 'Делбич ты(', 'Обидно', 'Сам придумал, или мама подсказала',
                     'Да? А я вчера могилу твоей матери навещала', 'Эммм, тебя не научили общаться нормально?', 'Ну ты и ебло ебаное)',
                     'Про таких как ты говорят: мама не хотела, папа не старался']
+NEGATIVE_WHOAMI_REPLIES = ['долбаеб', 'сын шалавы ебаной', 'уебан сраный', 'гандон штопаный', 'ублюдок недоебаный', 'блядский мудак',
+                           'пидорас', 'уёбак', 'конченный хуесос', 'дифичент ебаный', 'хуепутало']
+POSITIVE_WHOAMI_REPLIES = ['норм чел', 'котик', 'милаха', 'няша', 'классный', 'приятный', 'хороший', 'крутой' , 'классный', 'офигенный']
 GOOD_NIGHT = ['Споки)', 'Спокойной ночи <3', 'Сладких снов)', 'Буду ждать твоего сообщения завтра утром)', 'Споки ноки', 'Я тоже иду спать. До завтра',
               'Выспись хорошо. И не проспи будильник))']
 GOOD_DAY = ['Привет!', 'Доброе утро! Я вот только проснулась)', 'Ку :3', 'Как настроение?', 'Охае', 'Шалом))0)', 'Э, салам алейкум, брат', 'Выспался?',
@@ -132,23 +136,37 @@ def reply(bot, update):
 
 def whoami(bot, update):
     print('MESSAGE: ', bot.message.text)
-    replys = ["долбаеб", "сын шалавы ебаной", 'уебан сраный', 'гандон штопаный', 'ублюдок недоебаный', 'блядский мудак',
-              'пидорас', 'уёбак', 'конченный хуесос', 'дифичент ебаный', 'хуепутало', 'норм чел', 'котик', 'милаха', 'няша', 'классный',
-              'приятный']
-    rep = replys[random.randint(0, len(replys) - 1)]
+    global MOODS
+    global MOOD_FADING
+    usr_id = bot.message.from_user['id']
+    if usr_id not in MOODS:
+        MOODS[usr_id] = 0
+    if MOODS[usr_id] < 0:
+        rep = NEGATIVE_WHOAMI_REPLIES[random.randint(0, len(NEGATIVE_WHOAMI_REPLIES) - 1)]
+    else:
+        rep = POSITIVE_WHOAMI_REPLIES[random.randint(0, len(POSITIVE_WHOAMI_REPLIES) - 1)]
     time.sleep(1)
     bot.message.reply_text('{}, ты сегодня такой {}'.format(bot.message.chat.first_name, rep))
 
 def sendlegs(bot, update):
-    print('MESSAGE: ', bot.message.text)
-    list = glob('LEGS/*')
-    pic = choice(list)
-    time.sleep(1)
-    bot.message.reply_text('Ну.... Хорошо')
-    time.sleep(1)
-    update.bot.send_photo(chat_id=bot.message.chat.id, photo=open(pic, 'rb'))
-    time.sleep(1)
-    bot.message.reply_text('Надеюсь, тебе понравилось)')
+    global MOODS
+    global MOOD_FADING
+    usr_id = bot.message.from_user['id']
+    if usr_id not in MOODS:
+        MOODS[usr_id] = 0
+    if MOODS[usr_id] < 0:
+        rep = NEGATIVE_QUIESTION_ANSWERS[random.randint(0, len(NEGATIVE_QUIESTION_ANSWERS) - 1)]
+        bot.message.reply_text(rep)
+    else:
+        print('MESSAGE: ', bot.message.text)
+        list = glob('LEGS/*')
+        pic = choice(list)
+        time.sleep(1)
+        bot.message.reply_text('Ну.... Хорошо')
+        time.sleep(1)
+        update.bot.send_photo(chat_id=bot.message.chat.id, photo=open(pic, 'rb'))
+        time.sleep(1)
+        bot.message.reply_text('Надеюсь, тебе понравилось)')
 
 def when3season(bot, update):
     print('MESSAGE: ', bot.message.text)
@@ -193,6 +211,11 @@ def when3season(bot, update):
 
 def sendday(bot, update):
     print('MESSAGE: ', bot.message.text)
+    global MOODS
+    global MOOD_FADING
+    usr_id = bot.message.from_user['id']
+    if usr_id not in MOODS:
+        MOODS[usr_id] = 0
     bot.message.reply_text('Хммм, дай-ка подумать')
     pic = ''
     weekday = datetime.datetime.today().weekday()
@@ -214,8 +237,13 @@ def sendday(bot, update):
     time.sleep(1)
     update.bot.send_photo(chat_id=bot.message.chat.id, photo=open(pic, 'rb'))
     time.sleep(1)
-    bot.message.reply_text('Это, кстати, {} {}. Хорошего дня, {})'.format(date.today().day, MONTH[date.today().month-1], bot.message.chat.first_name))
     bot.message.reply_text('Сегодня:\n' + HOLIDAYS[str(date.today().day) + ' ' + MONTH[date.today().month-1]])
+    time.sleep(1)
+    if MOODS[usr_id] < 0:
+        rep = 'Хуёвого дня'
+    else:
+        rep = 'Хорошего дня'
+    bot.message.reply_text('Это, кстати, {} {}.{}}, {})'.format(date.today().day, MONTH[date.today().month-1], rep, bot.message.chat.first_name))
 
 def getlocation(lat, lon):
     url = f"https://yandex.ru/pogoda/moscow?lat={lat}&lon={lon}"
