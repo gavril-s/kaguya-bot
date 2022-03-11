@@ -183,9 +183,14 @@ def sendlegs(bot, update):
         time.sleep(1)
         bot.message.reply_text('Ну.... Хорошо')
         time.sleep(1)
+        if pic == '0.png':
+            text = 'Хаха, я тебя затроллила)'
+        else:
+            text = 'Надеюсь, тебе понравилось)'
         update.bot.send_photo(chat_id=bot.message.chat.id, photo=open(pic, 'rb'))
         time.sleep(1)
-        bot.message.reply_text('Надеюсь, тебе понравилось)')
+        bot.message.reply_text(text)
+        
 
 def when3season(bot, update):
     log(bot.message)
