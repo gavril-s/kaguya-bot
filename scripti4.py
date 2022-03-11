@@ -35,6 +35,10 @@ GOOD_DAY = ['Привет!', 'Доброе утро! Я вот только пр
 BYE = ['споки', 'спокойной ночи', 'а ну спать', 'до завтра', 'пока', 'сладких снов']
 HI = ['привет', 'ку', 'здарова', 'доброе утро']
 MONTH = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря']
+WHATSUP_QUESTIONS = ['как дела?', 'как настроение?', 'как жизнь?', 'как твои дела?', 'что нового?']
+POSITIVE_WAHATSUP_ANSWERS = ['У меня все хорошо. А у тебя как настроение?)', 'Нормально. А у тебя как настроение?)', 'Все ок. А у тебя как настроение?)',
+                             'Все отлично. А у тебя как настроение?)']
+NEGATIVE_WAHATSUP_ANSWERS = ['Отвратительно', 'Ужасно(', 'Плоха, ты бака(', 'Не твое дело!']
 
 MOODS = {}
 MOOD_FADING = 0.681690113816
@@ -140,6 +144,11 @@ def reply(bot, update):
             rep = GOOD_DAY[random.randint(0, len(GOOD_DAY) - 1)]
         elif bot.message.text.lower() in BYE:
             rep = GOOD_NIGHT[random.randint(0, len(GOOD_NIGHT) - 1)]
+        elif bot.message.text.lower() in WHATSUP_QUESTIONS:
+            if MOODS[usr_id] < 0:
+                rep = NEGATIVE_WAHATSUP_ANSWERS[random.randint(0, len(NEGATIVE_WAHATSUP_ANSWERS) - 1)]
+            else:
+                rep = POSITIVE_WAHATSUP_ANSWERS[random.randint(0, len(POSITIVE_WAHATSUP_ANSWERS) - 1)]
         elif MOODS[usr_id] < 0:
             if '?' in bot.message.text:
                 rep = NEGATIVE_QUIESTION_ANSWERS[random.randint(0, len(NEGATIVE_QUIESTION_ANSWERS) - 1)]
