@@ -12,6 +12,7 @@ from glob import glob
 import io
 
 WORDS = dict()
+HOLIDAYS = dict()
 POSITIVE_QUESTION_ANSWERS = ['Да, сенпай!', 'Да)', 'Ага', 'Согласна))', 'Так точно!', 'Может быть)', 'Проверь и узнаешь)', 'Скорее да',
                              'Нет, сенпай', 'Нет!', 'Неа', 'Не-не-не', 'Я стесняюсь отвечать на такие вопросы//', 'Нет, ты что)']
 NEGATIVE_QUIESTION_ANSWERS = ['Да и что', 'Ну да.', 'Ага.', 'Чел...', 'Нет', 'Сходи нахуй', 'Еблан...', 
@@ -43,6 +44,15 @@ def read_words():
         if tmp[1] != '0' and tmp[0] not in WORDS:
             WORDS[tmp[0]] = int(tmp[1])
     f.close()
+
+def read_holidays():
+    f = io.open('holidays.txt', mode='r', encoding='utf-8')
+    for line in f:
+        tmp = line.split()
+        holiday = ''
+        for i in range(3, len(tmp)):
+            holiday += tmp[i] + ' '
+        HOLIDAYS[tmp[0] + ' ' + tmp[1]] = holiday
 
 def norm_word(x):
     global MORPH
@@ -200,10 +210,12 @@ def sendday(bot, update):
         pic = 'DAY/saturday.jpg'
     elif weekday == 6:
         pic = 'DAY/sunday.jpg'
+
     time.sleep(1)
     update.bot.send_photo(chat_id=bot.message.chat.id, photo=open(pic, 'rb'))
     time.sleep(1)
     bot.message.reply_text('Это, кстати, {} {}. Хорошего дня, {})'.format(date.today().day, MONTH[date.today().month-1], bot.message.chat.first_name))
+    bot.message.reply_text('Сегодня:\n' + HOLIDAYS[str(date.today().day) + ' ' + MONTH[date.today().month-1]])
 
 def getlocation(lat, lon):
     url = f"https://yandex.ru/pogoda/moscow?lat={lat}&lon={lon}"
@@ -233,6 +245,7 @@ def sendweather(bot, update):
 
 def main():
     read_words()
+    read_holidays()
     bot = Updater("5260290537:AAGWg9J4a5dZDqsrq3MG3fejuBvD-0tasOA", use_context=True)
     bot.dispatcher.add_handler(CommandHandler('start', sms))
     bot.dispatcher.add_handler(MessageHandler(Filters.regex('Кто я сегодня?'), whoami))
