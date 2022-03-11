@@ -37,9 +37,22 @@ HI = ['привет', 'ку', 'здарова', 'доброе утро']
 MONTH = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря']
 
 MOODS = {}
-MOOD_FADING = 0.69
+MOOD_FADING = 0.681690113816
 
 MORPH = pymorphy2.MorphAnalyzer()
+
+WAITING_FOR_CITY = False
+CITY = ''
+
+def log(msg):
+    print('-------------------------')
+    print('MESSAGE: ', msg.text)
+    print('USER: ', msg.from_user['first_name'])
+    if msg.from_user['id'] in MOODS:
+        print('MOOD: ', MOODS[msg.from_user['id']])
+    else:
+        print('MOOD: ', 0)
+    print('-------------------------')
 
 def read_words():
     f = io.open('words.txt', mode='r', encoding='utf-8')
@@ -86,7 +99,7 @@ def compute_emo_rate(msg):
     return rate / len(msg_words)
 
 def sms(bot, update):
-    print('MESSAGE: ', bot.message.text)
+    log(bot.message)
     keyboard = ReplyKeyboardMarkup([['Скинь ножки', 'Какой сегодня день?'], ['Кто я сегодня?', 'Когда новый сезон?'], ['Какая погода сейчас?']], resize_keyboard=True)
     bot.message.reply_text('Охае, {}!'.format(bot.message.chat.first_name))
     time.sleep(1)
@@ -94,14 +107,20 @@ def sms(bot, update):
     #update.bot.send_sticker(chat_id=update.message.chat_id, sticker='CAADAgADOQADfyesDlKEqOOd72VKAg')
 
 def reply(bot, update):
-    print('MESSAGE: ', bot.message.text)
+    log(bot.message)
+    global CITY
+    global WAITING_FOR_CITY
+    if WAITING_FOR_CITY:
+        CITY = bot.message.text
+        WAITING_FOR_CITY = False
+        sendweather(bot)
+        return
     global MOODS
     global MOOD_FADING
     usr_id = bot.message.from_user['id']
     if usr_id not in MOODS:
         MOODS[usr_id] = 0
     MOODS[usr_id] = MOOD_FADING * MOODS[usr_id] + compute_emo_rate(bot.message.text)
-    print('MOOD: ', MOODS[usr_id])
     if random.random() <= 0.01:
         bot.message.reply_text('Когда ты мне пишешь...')
         time.sleep(1)
@@ -135,7 +154,7 @@ def reply(bot, update):
         bot.message.reply_text(rep)
 
 def whoami(bot, update):
-    print('MESSAGE: ', bot.message.text)
+    log(bot.message)
     global MOODS
     global MOOD_FADING
     usr_id = bot.message.from_user['id']
@@ -149,6 +168,7 @@ def whoami(bot, update):
     bot.message.reply_text('{}, ты сегодня такой {}'.format(bot.message.chat.first_name, rep))
 
 def sendlegs(bot, update):
+    log(bot.message)
     global MOODS
     global MOOD_FADING
     usr_id = bot.message.from_user['id']
@@ -158,7 +178,6 @@ def sendlegs(bot, update):
         rep = NEGATIVE_QUIESTION_ANSWERS[random.randint(0, len(NEGATIVE_QUIESTION_ANSWERS) - 1)]
         bot.message.reply_text(rep)
     else:
-        print('MESSAGE: ', bot.message.text)
         list = glob('LEGS/*')
         pic = choice(list)
         time.sleep(1)
@@ -169,7 +188,7 @@ def sendlegs(bot, update):
         bot.message.reply_text('Надеюсь, тебе понравилось)')
 
 def when3season(bot, update):
-    print('MESSAGE: ', bot.message.text)
+    log(bot.message)
     now = date.today()
     ser_1 = date(2022, 4, 9)
     ser_2 = date(2022, 4, 16)
@@ -210,7 +229,7 @@ def when3season(bot, update):
         bot.message.reply_text('https://jut.su/kaguya-sama/')
 
 def sendday(bot, update):
-    print('MESSAGE: ', bot.message.text)
+    log(bot.message)
     global MOODS
     global MOOD_FADING
     usr_id = bot.message.from_user['id']
@@ -243,11 +262,7 @@ def sendday(bot, update):
         rep = 'Хуёвого дня'
     else:
         rep = 'Хорошего дня'
-    bot.message.reply_text('Это, кстати, {} {}.{}}, {})'.format(date.today().day, MONTH[date.today().month-1], rep, bot.message.chat.first_name))
-
-def getlocation(lat, lon):
-    url = f"https://yandex.ru/pogoda/moscow?lat={lat}&lon={lon}"
-    return url
+    bot.message.reply_text('Это, кстати, {} {}. {}, {})'.format(date.today().day, MONTH[date.today().month-1], rep, bot.message.chat.first_name))
 
 def weather(city: str):
     config_dict = cfg.get_default_config()
@@ -256,20 +271,28 @@ def weather(city: str):
     mgr = owm.weather_manager()
     obs = mgr.weather_at_place(city)
     weather = obs.weather
-    loc = getlocation(obs.location.lat, obs.location.lon)
     temp = weather.temperature("celsius")
-    return temp, loc
+    detail = weather.detailed_status
+    return temp, detail
 
-def sendweather(bot, update):
-    print('MESSAGE: ', bot.message.text)
-    #bot.message.reply_text('Напиши название города')
+def sendweather(bot):
+    global WAITING_FOR_CITY
+    global CITY
+    if CITY == '':
+        WAITING_FOR_CITY = True
+        bot.message.reply_text('Напиши название города')
+        return
     time.sleep(1)
-    city = 'Москва'#bot.message.text
-    #try:
-    w = weather(city)
-    bot.message.reply_text('В городе ' + city + ' сейчас  ' + str(round(w[0]["temp"])) + '° C')
-    #except Exception:
-    #    bot.message.reply_text('А этот город вообще существует, дурачье?')
+    try:
+        w = weather(CITY)
+        bot.message.reply_text('В городе ' + CITY + ' сейчас ' + str(round(w[0]["temp"])) + '°C, ' + w[1])
+    except Exception:
+        bot.message.reply_text('А этот город вообще существует, дурачье?')
+    CITY = ''
+
+def sendweather_handler(bot, update):
+    log(bot.message)
+    sendweather(bot)
 
 def main():
     read_words()
@@ -280,7 +303,7 @@ def main():
     bot.dispatcher.add_handler(MessageHandler(Filters.regex('Скинь ножки'), sendlegs))
     bot.dispatcher.add_handler(MessageHandler(Filters.regex('Какой сегодня день?'), sendday))
     bot.dispatcher.add_handler(MessageHandler(Filters.regex('Когда новый сезон?'), when3season))
-    bot.dispatcher.add_handler(MessageHandler(Filters.regex('Какая погода сейчас?'), sendweather))
+    bot.dispatcher.add_handler(MessageHandler(Filters.regex('Какая погода сейчас?'), sendweather_handler))
     bot.dispatcher.add_handler(MessageHandler(Filters.text, reply))
 
     bot.start_polling()
