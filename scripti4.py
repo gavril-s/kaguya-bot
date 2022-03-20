@@ -1,6 +1,7 @@
 from re import S
-from telegram.ext import Updater, CommandHandler, Filters, MessageHandler
-from telegram import ReplyKeyboardMarkup
+from telegram.ext import Updater, CommandHandler, Filters, MessageHandler, CallbackQueryHandler
+from telegram import ReplyKeyboardMarkup, InlineKeyboardMarkup, InlineKeyboardButton
+import telegram, telegram.ext
 from pyowm import OWM
 from pyowm.utils import config as cfg
 import pymorphy2
@@ -10,10 +11,13 @@ from datetime import date
 import datetime
 import time
 from glob import glob
+import json
 import io
 
 WORDS = dict()
 HOLIDAYS = dict()
+USERS = dict()
+
 POSITIVE_QUESTION_ANSWERS = ['Да, сенпай!', 'Да)', 'Ага', 'Согласна))', 'Так точно!', 'Может быть)', 'Проверь и узнаешь)', 'Скорее да',
                              'Нет, сенпай', 'Нет!', 'Неа', 'Не-не-не', 'Я стесняюсь отвечать на такие вопросы//', 'Нет, ты что)']
 NEGATIVE_QUIESTION_ANSWERS = ['Да и что', 'Ну да.', 'Ага.', 'Чел...', 'Нет', 'Сходи нахуй', 'Еблан...', 
@@ -31,31 +35,30 @@ POSITIVE_WHOAMI_REPLIES = ['норм чел', 'котик', 'милаха', 'н�
 GOOD_NIGHT = ['Споки)', 'Спокойной ночи <3', 'Сладких снов)', 'Буду ждать твоего сообщения завтра утром)', 'Споки ноки', 'Я тоже иду спать. До завтра',
               'Выспись хорошо. И не проспи будильник))']
 GOOD_DAY = ['Привет!', 'Доброе утро! Я вот только проснулась)', 'Ку :3', 'Как настроение?', 'Охае', 'Шалом))0)', 'Э, салам алейкум, брат', 'Выспался?',
-                'Приветик)', 'Надеюсь, ты хорошо поспал', 'Утречко)']
+            'Приветик)', 'Надеюсь, ты хорошо поспал', 'Утречко)']
 BYE = ['споки', 'спокойной ночи', 'а ну спать', 'до завтра', 'пока', 'сладких снов']
 HI = ['привет', 'ку', 'здарова', 'доброе утро']
 MONTH = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря']
-WHATSUP_QUESTIONS = ['как дела?', 'как настроение?', 'как жизнь?', 'как твои дела?', 'что нового?']
+WHATSUP_QUESTIONS = ['как дела?', 'как настроение?', 'как жизнь?', 'как твои дела?', 'что нового?', 'как ты?']
 POSITIVE_WAHATSUP_ANSWERS = ['У меня все хорошо. А у тебя как настроение?)', 'Нормально. А у тебя как настроение?)', 'Все ок. А у тебя как настроение?)',
                              'Все отлично. А у тебя как настроение?)']
 NEGATIVE_WAHATSUP_ANSWERS = ['Отвратительно', 'Ужасно(', 'Плоха, ты бака(', 'Не твое дело!']
+APPEALS = ['кагуя', 'слушай', 'эй бейба', 'девка']
+POSITIVE_APPEALS_ANSWERS = ['Да', 'А', 'Слушаю тебя, сенпай', 'Слушаю)', 'Что такое?']
+NEGATIVE_APPEALS_ANSWERS = ['Чего тебе', 'Да.', 'С мамой своей поговори, а меня не трогай', 'Чего тебе, ебло?', 'Иди нахуй сразу', 'В мут с нулевой']
 
-MOODS = {}
-MOOD_FADING = 0.681690113816
+ADMINS_ID = ['441875037', '635725092']
+
+MOOD_FADING = 0.6816901138162094
 
 MORPH = pymorphy2.MorphAnalyzer()
-
-WAITING_FOR_CITY = False
-CITY = ''
+CONTROL_MSGS = dict()
 
 def log(msg):
     print('-------------------------')
     print('MESSAGE: ', msg.text)
     print('USER: ', msg.from_user['first_name'])
-    if msg.from_user['id'] in MOODS:
-        print('MOOD: ', MOODS[msg.from_user['id']])
-    else:
-        print('MOOD: ', 0)
+    print('MOOD: ', USERS[get_id_bymsg(msg)]['mood'])
     print('-------------------------')
 
 def read_words():
@@ -74,6 +77,55 @@ def read_holidays():
         for i in range(3, len(tmp)):
             holiday += tmp[i] + ' '
         HOLIDAYS[tmp[0] + ' ' + tmp[1]] = holiday
+
+def read_users():
+    global USERS
+    try:
+        f = io.open('users.json', mode='r', encoding='utf-8').read()
+        USERS = json.loads(f)
+    except Exception:
+        f = io.open('users.json', mode='w', encoding='utf-8')
+        f.write('{}')
+        USERS = dict()
+    print(USERS)
+
+def write_users():
+    f = io.open('users.json', mode='w', encoding='utf-8')
+    json_string = json.dumps(USERS)
+    f.write(json_string)
+
+def register_user(msg):
+    global USERS
+    id = str(msg.from_user['id'])
+    first_name = msg.from_user['first_name']
+    last_name = msg.from_user['last_name']
+    USERS[id] = {
+        'first_name' : first_name,
+        'last_name' : last_name,
+        'mood' : 0,
+        'city' : '',
+        'waiting_for_city' : False,
+        'msg_count' : 0,
+        'pics_unlocked' : 0,
+        'pics': [False] * len(glob('LEGS/*'))
+    }
+
+def check_registration(bot):
+    usr_id = get_id(bot)
+    if usr_id not in USERS:
+        register_user(msg)
+        print('NEW USER: ', USERS[usr_id])
+
+def check_registration_bymsg(msg):
+    usr_id = get_id_bymsg(msg)
+    if usr_id not in USERS:
+        register_user(msg)
+        print('NEW USER: ', USERS[usr_id])
+
+def get_id(bot):
+    return str(bot.effective_user['id'])
+def get_id_bymsg(msg):
+    return str(msg.from_user['id'])
 
 def norm_word(x):
     global MORPH
@@ -102,29 +154,89 @@ def compute_emo_rate(msg):
             return 0
     return rate / len(msg_words)
 
+def build_menu(buttons,n_cols,header_buttons=None,footer_buttons=None):
+    menu = [buttons[i:i + n_cols] for i in range(0, len(buttons), n_cols)]
+    if header_buttons:
+        menu.insert(0, header_buttons)
+    if footer_buttons:
+        menu.append(footer_buttons)
+    return menu
+
 def sms(bot, update):
+    global USERS
+    usr_id = get_id_bymsg(bot.message)
+    check_registration_bymsg(bot.message)
     log(bot.message)
+    USERS[usr_id]['msg_count'] += 1
+    if USERS[usr_id]['waiting_for_city']:
+        USERS[usr_id]['waiting_for_city'] = False
     keyboard = ReplyKeyboardMarkup([['Скинь ножки', 'Какой сегодня день?'], ['Кто я сегодня?', 'Когда новый сезон?'], ['Какая погода сейчас?']], resize_keyboard=True)
     bot.message.reply_text('Охае, {}!'.format(bot.message.chat.first_name))
     time.sleep(1)
     bot.message.reply_text("Меня зовут Кагуя Синомия. Чем могу помочь?", reply_markup=keyboard)
     #update.bot.send_sticker(chat_id=update.message.chat_id, sticker='CAADAgADOQADfyesDlKEqOOd72VKAg')
+    write_users()
+
+def help_user(bot, update):
+    global USERS
+    usr_id = get_id_bymsg(bot.message)
+    check_registration_bymsg(bot.message)
+    log(bot.message)
+    USERS[usr_id]['msg_count'] += 1
+    if USERS[usr_id]['waiting_for_city']:
+        USERS[usr_id]['waiting_for_city'] = False
+    bot.message.reply_text('Помоги себе сам, ёпта')
+    write_users()    
+
+def get_stat(usr_id):
+    res = ''
+    res += 'Отправлено сообщений: ' + str(USERS[usr_id]['msg_count']) + '\n'
+    res += 'Картинок открыто: ' + str(USERS[usr_id]['pics_unlocked']) + '/' + str(len(glob('LEGS/*'))) + '\n'
+    res += 'Настроение твоей Кагуи: ' + str(round(USERS[usr_id]['mood'], 2)) + '\n'
+    return res
+
+def get_admin_stat(usr_id):
+    res = 'id: ' + usr_id + '\n' + 'Имя: ' + USERS[usr_id]['first_name']
+    if USERS[usr_id]['last_name'] != None:
+        res += ' ' + USERS[usr_id]['last_name']
+    res += '\n-----------------------------------------\n'
+    res += 'Отправлено сообщений: ' + str(USERS[usr_id]['msg_count']) + '\n'
+    res += 'Картинок открыто: ' + str(USERS[usr_id]['pics_unlocked']) + '/' + str(len(glob('LEGS/*'))) + '\n'
+    res += 'Настроение: ' + str(round(USERS[usr_id]['mood'], 2)) + '\n'
+    return res
+
+def stat(bot, update):
+    global USERS
+    usr_id = get_id_bymsg(bot.message)
+    check_registration_bymsg(bot.message)
+    log(bot.message)
+    USERS[usr_id]['msg_count'] += 1
+    if USERS[usr_id]['waiting_for_city']:
+        USERS[usr_id]['waiting_for_city'] = False
+
+    if usr_id in ADMINS_ID:
+        for u in USERS:
+            bot.message.reply_text(get_admin_stat(u))
+    else:
+        bot.message.reply_text(get_stat(usr_id))
+    write_users()
 
 def reply(bot, update):
-    log(bot.message)
-    global CITY
-    global WAITING_FOR_CITY
-    if WAITING_FOR_CITY:
-        CITY = bot.message.text
-        WAITING_FOR_CITY = False
-        sendweather(bot)
-        return
-    global MOODS
+    global USERS
     global MOOD_FADING
-    usr_id = bot.message.from_user['id']
-    if usr_id not in MOODS:
-        MOODS[usr_id] = 0
-    MOODS[usr_id] = MOOD_FADING * MOODS[usr_id] + compute_emo_rate(bot.message.text)
+    usr_id = get_id_bymsg(bot.message)
+    check_registration_bymsg(bot.message)
+    USERS[usr_id]['msg_count'] += 1
+    if USERS[usr_id]['waiting_for_city']:
+        USERS[usr_id]['city'] = bot.message.text
+        USERS[usr_id]['waiting_for_city'] = False
+        sendweather(bot, update)
+        return
+    emo_rate = compute_emo_rate(bot.message.text)
+    USERS[usr_id]['mood'] = MOOD_FADING * USERS[usr_id]['mood'] + emo_rate
+    if -0.1 < USERS[usr_id]['mood'] < 0 and emo_rate >= 0:
+        USERS[usr_id]['mood'] = 0
+    log(bot.message)
     if random.random() <= 0.01:
         bot.message.reply_text('Когда ты мне пишешь...')
         time.sleep(1)
@@ -140,16 +252,21 @@ def reply(bot, update):
         time.sleep(1)
         bot.message.reply_text('Это невероятно')
     else:
-        if bot.message.text.lower() in HI:
+        if bot.message.text.lower() in APPEALS:
+            if USERS[usr_id]['mood'] < 0:
+                rep = NEGATIVE_APPEALS_ANSWERS[random.randint(0, len(NEGATIVE_APPEALS_ANSWERS) - 1)]
+            else:
+                rep = POSITIVE_APPEALS_ANSWERS[random.randint(0, len(POSITIVE_APPEALS_ANSWERS) - 1)]
+        elif bot.message.text.lower() in HI:
             rep = GOOD_DAY[random.randint(0, len(GOOD_DAY) - 1)]
         elif bot.message.text.lower() in BYE:
             rep = GOOD_NIGHT[random.randint(0, len(GOOD_NIGHT) - 1)]
         elif bot.message.text.lower() in WHATSUP_QUESTIONS:
-            if MOODS[usr_id] < 0:
+            if USERS[usr_id]['mood'] < 0:
                 rep = NEGATIVE_WAHATSUP_ANSWERS[random.randint(0, len(NEGATIVE_WAHATSUP_ANSWERS) - 1)]
             else:
                 rep = POSITIVE_WAHATSUP_ANSWERS[random.randint(0, len(POSITIVE_WAHATSUP_ANSWERS) - 1)]
-        elif MOODS[usr_id] < 0:
+        elif USERS[usr_id]['mood'] < 0:
             if '?' in bot.message.text:
                 rep = NEGATIVE_QUIESTION_ANSWERS[random.randint(0, len(NEGATIVE_QUIESTION_ANSWERS) - 1)]
             else:
@@ -161,48 +278,65 @@ def reply(bot, update):
                 rep = POSITIVE_REPLIES[random.randint(0, len(POSITIVE_REPLIES) - 1)]
         time.sleep(1)
         bot.message.reply_text(rep)
+    write_users()
 
 def whoami(bot, update):
+    global USERS
+    usr_id = get_id_bymsg(bot.message)
+    check_registration_bymsg(bot.message)
     log(bot.message)
-    global MOODS
-    global MOOD_FADING
-    usr_id = bot.message.from_user['id']
-    if usr_id not in MOODS:
-        MOODS[usr_id] = 0
-    if MOODS[usr_id] < 0:
+    USERS[usr_id]['msg_count'] += 1
+    if USERS[usr_id]['waiting_for_city']:
+        USERS[usr_id]['waiting_for_city'] = False
+    if USERS[usr_id]['mood'] < 0:
         rep = NEGATIVE_WHOAMI_REPLIES[random.randint(0, len(NEGATIVE_WHOAMI_REPLIES) - 1)]
     else:
         rep = POSITIVE_WHOAMI_REPLIES[random.randint(0, len(POSITIVE_WHOAMI_REPLIES) - 1)]
     time.sleep(1)
     bot.message.reply_text('{}, ты сегодня такой {}'.format(bot.message.chat.first_name, rep))
+    write_users()
 
 def sendlegs(bot, update):
+    global USERS
+    usr_id = get_id_bymsg(bot.message)
+    check_registration_bymsg(bot.message)
     log(bot.message)
-    global MOODS
-    global MOOD_FADING
-    usr_id = bot.message.from_user['id']
-    if usr_id not in MOODS:
-        MOODS[usr_id] = 0
-    if MOODS[usr_id] < 0:
+    USERS[usr_id]['msg_count'] += 1
+    if USERS[usr_id]['waiting_for_city']:
+        USERS[usr_id]['waiting_for_city'] = False
+    if USERS[usr_id]['mood'] < 0:
         rep = NEGATIVE_QUIESTION_ANSWERS[random.randint(0, len(NEGATIVE_QUIESTION_ANSWERS) - 1)]
         bot.message.reply_text(rep)
     else:
         list = glob('LEGS/*')
         pic = choice(list)
+        num = int(pic[5:-4])
+        while num > len(USERS[usr_id]['pics']) - 1:
+            USERS[usr_id]['pics'].append(False)
+        if USERS[usr_id]['pics'][num] == False:
+            USERS[usr_id]['pics'][num] = True
+            USERS[usr_id]['pics_unlocked'] += 1
         time.sleep(1)
         bot.message.reply_text('Ну.... Хорошо')
         time.sleep(1)
-        if pic == '0.png':
+        if pic == 'LEGS\\0.png' or pic == 'LEGS/0.png':
             text = 'Хаха, я тебя затроллила)'
         else:
             text = 'Надеюсь, тебе понравилось)'
         update.bot.send_photo(chat_id=bot.message.chat.id, photo=open(pic, 'rb'))
         time.sleep(1)
         bot.message.reply_text(text)
+    write_users()
         
 
 def when3season(bot, update):
+    global USERS
+    usr_id = get_id_bymsg(bot.message)
+    check_registration_bymsg(bot.message)
     log(bot.message)
+    USERS[usr_id]['msg_count'] += 1
+    if USERS[usr_id]['waiting_for_city']:
+        USERS[usr_id]['waiting_for_city'] = False
     now = date.today()
     ser_1 = date(2022, 4, 9)
     ser_2 = date(2022, 4, 16)
@@ -241,14 +375,16 @@ def when3season(bot, update):
         bot.message.reply_text('А ну бегом смотреть')
         time.sleep(1)
         bot.message.reply_text('https://jut.su/kaguya-sama/')
+    write_users()
 
 def sendday(bot, update):
+    global USERS
+    usr_id = get_id_bymsg(bot.message)
+    check_registration_bymsg(bot.message)
     log(bot.message)
-    global MOODS
-    global MOOD_FADING
-    usr_id = bot.message.from_user['id']
-    if usr_id not in MOODS:
-        MOODS[usr_id] = 0
+    USERS[usr_id]['msg_count'] += 1
+    if USERS[usr_id]['waiting_for_city']:
+        USERS[usr_id]['waiting_for_city'] = False
     bot.message.reply_text('Хммм, дай-ка подумать')
     pic = ''
     weekday = datetime.datetime.today().weekday()
@@ -272,11 +408,12 @@ def sendday(bot, update):
     time.sleep(1)
     bot.message.reply_text('Сегодня:\n' + HOLIDAYS[str(date.today().day) + ' ' + MONTH[date.today().month-1]])
     time.sleep(1)
-    if MOODS[usr_id] < 0:
+    if USERS[usr_id]['mood'] < 0:
         rep = 'Хуёвого дня'
     else:
         rep = 'Хорошего дня'
     bot.message.reply_text('Это, кстати, {} {}. {}, {})'.format(date.today().day, MONTH[date.today().month-1], rep, bot.message.chat.first_name))
+    write_users()
 
 def weather(city: str):
     config_dict = cfg.get_default_config()
@@ -289,35 +426,63 @@ def weather(city: str):
     detail = weather.detailed_status
     return temp, detail
 
-def sendweather(bot):
-    global WAITING_FOR_CITY
-    global CITY
-    if CITY == '':
-        WAITING_FOR_CITY = True
-        bot.message.reply_text('Напиши название города')
-        return
-    time.sleep(1)
+def change_weather_city(bot, update):
+    usr_id = str(bot.effective_user['id'])
+    #check_registration(bot.message)
+    USERS[usr_id]['city'] = ''
+    sendweather(bot, update)
+
+def sendweather(bot, update):
+    global CONTROL_MSGS
+    global USERS
     try:
-        w = weather(CITY)
-        bot.message.reply_text('В городе ' + CITY + ' сейчас ' + str(round(w[0]["temp"])) + '°C, ' + w[1])
+        usr_id = get_id_bymsg(bot.message)
+        check_registration_bymsg(bot.message)
     except Exception:
-        bot.message.reply_text('А этот город вообще существует, дурачье?')
-    CITY = ''
+        usr_id = get_id_bymsg(CONTROL_MSGS[get_id(bot)])
+        check_registration_bymsg(CONTROL_MSGS[get_id(bot)])
+    if bot.message != None:
+        USERS[usr_id]['msg_count'] += 1
+        CONTROL_MSGS[get_id(bot)] = bot.message
+        log(bot.message)
+    if USERS[usr_id]['waiting_for_city']:
+        USERS[usr_id]['waiting_for_city'] = False
+    if USERS[usr_id]['city'] == '':
+        USERS[usr_id]['waiting_for_city'] = True
+        CONTROL_MSGS[get_id(bot)].reply_text('Напиши название города')
+        return
+    
+    btn_text = 'Погода в другом городе'
+    button_list = [InlineKeyboardButton(btn_text, callback_data = btn_text)]
+    reply_markup = InlineKeyboardMarkup(build_menu(button_list,n_cols=1))
+
+    try:
+        w = weather(USERS[usr_id]['city'])
+        rep = 'В городе ' + USERS[usr_id]['city'] + ' сейчас ' + str(round(w[0]["temp"])) + '°C, ' + w[1]
+    except Exception:
+        rep = 'А этот город вообще существует, дурачье?'
+        USERS[usr_id]['city'] = ''
+    CONTROL_MSGS[get_id(bot)].reply_text(rep, reply_markup=reply_markup)    
+    write_users()
 
 def sendweather_handler(bot, update):
-    log(bot.message)
-    sendweather(bot)
+    sendweather(bot, update)
 
 def main():
     read_words()
     read_holidays()
+    read_users()
     bot = Updater("5260290537:AAGWg9J4a5dZDqsrq3MG3fejuBvD-0tasOA", use_context=True)
     bot.dispatcher.add_handler(CommandHandler('start', sms))
+    bot.dispatcher.add_handler(CommandHandler('help', help_user))
+    bot.dispatcher.add_handler(CommandHandler('stat', stat))
     bot.dispatcher.add_handler(MessageHandler(Filters.regex('Кто я сегодня?'), whoami))
     bot.dispatcher.add_handler(MessageHandler(Filters.regex('Скинь ножки'), sendlegs))
     bot.dispatcher.add_handler(MessageHandler(Filters.regex('Какой сегодня день?'), sendday))
     bot.dispatcher.add_handler(MessageHandler(Filters.regex('Когда новый сезон?'), when3season))
     bot.dispatcher.add_handler(MessageHandler(Filters.regex('Какая погода сейчас?'), sendweather_handler))
+    bot.dispatcher.add_handler(MessageHandler(Filters.regex('Погода в другом городе'), change_weather_city))
+    bot.dispatcher.add_handler(CallbackQueryHandler(change_weather_city, pattern='^Погода в другом городе$'))
     bot.dispatcher.add_handler(MessageHandler(Filters.text, reply))
 
     bot.start_polling()

@@ -1,3 +1,5 @@
 venv
 .idea
 __pycache__
+users.json
+formatted_users.json
