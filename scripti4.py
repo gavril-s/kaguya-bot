@@ -86,6 +86,10 @@ MONTHS = ['января', 'февраля', 'марта', 'апреля', 'ма�
 ADMINS_ID = ['441875037', '635725092'] # админы - Тимка и Ганька
 
 MOOD_FADING = 0.6816901138162094 # коэффициент затухания настроения
+MESSAGE_RATING_FADING = 0.01 # коэффициент затухания рейтинга сообщения
+REPLY_WITH_USR_MSG = 0.2 # вероятность ответа сообщением пользователя (из top_messages)
+TOP_MESSAGES_SIZE = 100 # количество сообщений в топе
+SLEEP_TIME = 0.5 # задержка в отправке сообщений, шобы на человека было похоже (в секундах)
 
 MORPH = pymorphy2.MorphAnalyzer()
 CONTROL_MSGS = dict() # контрольное сообщение, на которое можно ответить, если юзер нихуя не написал
@@ -120,6 +124,13 @@ def read_users():
     try:
         f = io.open('users.json', mode='r', encoding='utf-8').read()
         USERS = json.loads(f)
+        for id in USERS:
+            if 'max_rating_pos_msg' not in USERS[id]:
+                USERS[id]['max_rating_pos_msg'] = ''
+            if 'max_rating_neg_msg' not in USERS[id]:
+                USERS[id]['max_rating_neg_msg'] = ''
+            if 'top_messages' not in USERS[id]:
+                USERS[id]['top_messages'] = dict()
     except Exception:
         f = io.open('users.json', mode='w', encoding='utf-8')
         f.write('{}')
@@ -136,15 +147,20 @@ def register_user(msg): # пажилая регистрация...
     id = str(msg.from_user['id'])
     first_name = msg.from_user['first_name']
     last_name = msg.from_user['last_name']
+    username = msg.from_user['username']
     USERS[id] = {
         'first_name' : first_name,
         'last_name' : last_name,
+        'username': username,
         'mood' : 0,
         'city' : '',
         'waiting_for_city' : False,
         'msg_count' : 0,
         'pics_unlocked' : 0,
-        'pics': [False] * len(glob('LEGS/*'))
+        'pics': [False] * len(glob('LEGS/*')),
+        'max_rating_pos_msg': '',
+        'max_rating_neg_msg': '',
+        'top_messages': dict() # топ сообщений челика
     }
 
 def check_registration(bot):
@@ -170,6 +186,17 @@ def norm_word(x): # приводит слово к начальной форме
     p = MORPH.parse(x)[0]
     return p.normal_form
 
+def clear_msg(msg): # удаляет говно из сообщения
+    del_list = '.,;:`()' 
+    p_msg = msg.strip().lower()
+    trantab = p_msg.maketrans('', '', del_list)
+    p_msg = p_msg.translate(trantab)
+    if len(p_msg) >= 1:
+        p_msg = p_msg[0].upper() + p_msg[1:]
+    else:
+        p_msg = msg
+    return p_msg
+
 def compute_emo_rate(msg): # вычисляет эмоциональную окраску сообщения (пытается)
     del_list = '.,;!?:`()' 
     p_msg = msg.strip().lower()
@@ -178,6 +205,9 @@ def compute_emo_rate(msg): # вычисляет эмоциональную ок�
 
     if p_msg == 'прости': # ульта
         return 1
+
+    if p_msg == 'ёб твой рот': # ульта
+        return -1
 
     msg_words = p_msg.split()
     rate = 0
@@ -200,6 +230,23 @@ def build_menu(buttons,n_cols,header_buttons=None,footer_buttons=None): # это
         menu.append(footer_buttons)
     return menu
 
+def get_stat(usr_id): # выдаёт пользователю стату
+    res = ''
+    res += 'Отправлено сообщений: ' + str(USERS[usr_id]['msg_count']) + '\n'
+    res += 'Картинок открыто: ' + str(USERS[usr_id]['pics_unlocked']) + '/' + str(len(glob('LEGS/*'))) + '\n'
+    res += 'Настроение твоей Кагуи: ' + f"{USERS[usr_id]['mood']:.2f}" + '\n'
+    return res
+
+def get_admin_stat(usr_id): # выдаёт админам личные данные пользователей
+    res = 'id: ' + usr_id + '\n' + 'Имя: ' + USERS[usr_id]['first_name']
+    if USERS[usr_id]['last_name'] != None:
+        res += ' ' + USERS[usr_id]['last_name']
+    res += '\n-----------------------------------------\n'
+    res += 'Отправлено сообщений: ' + str(USERS[usr_id]['msg_count']) + '\n'
+    res += 'Картинок открыто: ' + str(USERS[usr_id]['pics_unlocked']) + '/' + str(len(glob('LEGS/*'))) + '\n'
+    res += 'Настроение: ' + f"{USERS[usr_id]['mood']:.2f}" + '\n'
+    return res
+
 
 #############################
 # А ВОТ ТУТ УЖЕ РЕАЛ БОТИК
@@ -214,7 +261,7 @@ def sms(bot, update): # отвечает на /start
         USERS[usr_id]['waiting_for_city'] = False
     keyboard = ReplyKeyboardMarkup([['Скинь ножки', 'Какой сегодня день?'], ['Кто я сегодня?', 'Когда новый сезон?'], ['Какая погода сейчас?']], resize_keyboard=True)
     bot.message.reply_text('Охае, {}!'.format(bot.message.chat.first_name))
-    time.sleep(1)
+    time.sleep(SLEEP_TIME)
     bot.message.reply_text("Меня зовут Кагуя Синомия. Чем могу помочь?", reply_markup=keyboard)
     #update.bot.send_sticker(chat_id=update.message.chat_id, sticker='CAADAgADOQADfyesDlKEqOOd72VKAg')
     write_users()
@@ -229,23 +276,6 @@ def help_user(bot, update): # отвечает на /help
         USERS[usr_id]['waiting_for_city'] = False
     bot.message.reply_text('Помоги себе сам, ёпта')
     write_users()    
-
-def get_stat(usr_id): # выдаёт пользователю стату
-    res = ''
-    res += 'Отправлено сообщений: ' + str(USERS[usr_id]['msg_count']) + '\n'
-    res += 'Картинок открыто: ' + str(USERS[usr_id]['pics_unlocked']) + '/' + str(len(glob('LEGS/*'))) + '\n'
-    res += 'Настроение твоей Кагуи: ' + str(round(USERS[usr_id]['mood'], 2)) + '\n'
-    return res
-
-def get_admin_stat(usr_id): # выдаёт админам личные данные пользователей
-    res = 'id: ' + usr_id + '\n' + 'Имя: ' + USERS[usr_id]['first_name']
-    if USERS[usr_id]['last_name'] != None:
-        res += ' ' + USERS[usr_id]['last_name']
-    res += '\n-----------------------------------------\n'
-    res += 'Отправлено сообщений: ' + str(USERS[usr_id]['msg_count']) + '\n'
-    res += 'Картинок открыто: ' + str(USERS[usr_id]['pics_unlocked']) + '/' + str(len(glob('LEGS/*'))) + '\n'
-    res += 'Настроение: ' + str(round(USERS[usr_id]['mood'], 2)) + '\n'
-    return res
 
 def stat(bot, update): # отвечает на /stat
     global USERS
@@ -281,17 +311,17 @@ def reply(bot, update): # ответ на обычное сообщение
     log(bot.message)
     if random.random() <= 0.01: # имба, редкость
         bot.message.reply_text('Когда ты мне пишешь...')
-        time.sleep(1)
+        time.sleep(SLEEP_TIME)
         bot.message.reply_text('Твоё сообщение')
-        time.sleep(1)
+        time.sleep(SLEEP_TIME)
         bot.message.reply_text('И я просто выхожу на хаха')
-        time.sleep(1)
+        time.sleep(SLEEP_TIME)
         bot.message.reply_text('Это так забавно мне')
-        time.sleep(1)
+        time.sleep(SLEEP_TIME)
         bot.message.reply_text('Я просто ссу себе в штаныыы')
-        time.sleep(1)
+        time.sleep(SLEEP_TIME)
         bot.message.reply_text('Ссу себе в штаны')
-        time.sleep(1)
+        time.sleep(SLEEP_TIME)
         bot.message.reply_text('Это невероятно')
     else:
         is_why = False
@@ -323,14 +353,55 @@ def reply(bot, update): # ответ на обычное сообщение
             if '?' in bot.message.text:
                 rep = NEGATIVE_QUIESTION_ANSWERS[random.randint(0, len(NEGATIVE_QUIESTION_ANSWERS) - 1)]
             else:
-                rep = NEGATIVE_REPLIES[random.randint(0, len(NEGATIVE_REPLIES) - 1)]
+                if random.random() <= REPLY_WITH_USR_MSG and len(USERS[usr_id]['top_messages']) > 0:
+                    rep = USERS[usr_id]['max_rating_neg_msg']
+                    if rep == '':
+                        rep = NEGATIVE_REPLIES[random.randint(0, len(NEGATIVE_REPLIES) - 1)]
+                else:
+                    rep = NEGATIVE_REPLIES[random.randint(0, len(NEGATIVE_REPLIES) - 1)]
         else:
             if '?' in bot.message.text:
                 rep = POSITIVE_QUESTION_ANSWERS[random.randint(0, len(POSITIVE_QUESTION_ANSWERS) - 1)]
             else:
-                rep = POSITIVE_REPLIES[random.randint(0, len(POSITIVE_REPLIES) - 1)]
-        time.sleep(1)
+                if random.random() <= REPLY_WITH_USR_MSG and len(USERS[usr_id]['top_messages']) > 0:
+                    rep =  USERS[usr_id]['max_rating_pos_msg']
+                    if rep == '':
+                        rep = POSITIVE_REPLIES[random.randint(0, len(POSITIVE_REPLIES) - 1)]
+                else:
+                    rep = POSITIVE_REPLIES[random.randint(0, len(POSITIVE_REPLIES) - 1)]
+        time.sleep(SLEEP_TIME)
         bot.message.reply_text(rep)
+    for m in USERS[usr_id]['top_messages']:
+        USERS[usr_id]['top_messages'][m]['rating'] *= 1 - MESSAGE_RATING_FADING
+    msg = clear_msg(bot.message.text)
+    mrp_m = USERS[usr_id]['max_rating_pos_msg']
+    mrn_m = USERS[usr_id]['max_rating_neg_msg']
+    if msg not in USERS[usr_id]['top_messages']:
+        while len(USERS[usr_id]['top_messages']) >= TOP_MESSAGES_SIZE:
+            min_r = float('inf')
+            del_m = ''
+            for m in USERS[usr_id]['top_messages']:
+                if USERS[usr_id]['top_messages'][m]['rating'] < min_r:
+                    min_r = USERS[usr_id]['top_messages'][m]['rating']
+                    del_m = m
+            USERS[usr_id]['top_messages'].pop(del_m)
+        USERS[usr_id]['top_messages'][msg] = {
+            'text' : msg,
+            'emo_rate' : compute_emo_rate(bot.message.text),
+            'rating' : 1,
+            'time' : time.time()
+        }
+        
+        if USERS[usr_id]['top_messages'][msg]['rating'] >= USERS[usr_id]['top_messages'][mrp_m]['rating'] and USERS[usr_id]['top_messages'][msg]['emo_rate'] >= 0:
+            USERS[usr_id]['max_rating_pos_msg'] = msg
+        if USERS[usr_id]['top_messages'][msg]['rating'] >= USERS[usr_id]['top_messages'][mrn_m]['rating'] and USERS[usr_id]['top_messages'][msg]['emo_rate'] < 0:
+            USERS[usr_id]['max_rating_neg_msg'] = msg
+    else:
+        USERS[usr_id]['top_messages'][msg]['rating'] += 1
+        if USERS[usr_id]['top_messages'][msg]['rating'] >= USERS[usr_id]['top_messages'][mrp_m]['rating'] and USERS[usr_id]['top_messages'][msg]['emo_rate'] >= 0:
+            USERS[usr_id]['max_rating_pos_msg'] = msg
+        if USERS[usr_id]['top_messages'][msg]['rating'] >= USERS[usr_id]['top_messages'][mrn_m]['rating'] and USERS[usr_id]['top_messages'][msg]['emo_rate'] < 0:
+            USERS[usr_id]['max_rating_neg_msg'] = msg
     write_users()
 
 def whoami(bot, update): # отвечает на "Кто я сегодня?"
@@ -345,7 +416,7 @@ def whoami(bot, update): # отвечает на "Кто я сегодня?"
         rep = NEGATIVE_WHOAMI_REPLIES[random.randint(0, len(NEGATIVE_WHOAMI_REPLIES) - 1)]
     else:
         rep = POSITIVE_WHOAMI_REPLIES[random.randint(0, len(POSITIVE_WHOAMI_REPLIES) - 1)]
-    time.sleep(1)
+    time.sleep(SLEEP_TIME)
     bot.message.reply_text('{}, ты сегодня такой {}'.format(bot.message.chat.first_name, rep))
     write_users()
 
@@ -369,15 +440,15 @@ def sendlegs(bot, update): # отвечает на "Скинь ножки"
         if USERS[usr_id]['pics'][num] == False:
             USERS[usr_id]['pics'][num] = True
             USERS[usr_id]['pics_unlocked'] += 1
-        time.sleep(1)
+        time.sleep(SLEEP_TIME)
         bot.message.reply_text('Ну.... Хорошо')
-        time.sleep(1)
+        time.sleep(SLEEP_TIME)
         if pic == 'LEGS\\0.png' or pic == 'LEGS/0.png':
             text = 'Хаха, я тебя затроллила)'
         else:
             text = 'Надеюсь, тебе понравилось)'
         update.bot.send_photo(chat_id=bot.message.chat.id, photo=open(pic, 'rb'))
-        time.sleep(1)
+        time.sleep(SLEEP_TIME)
         bot.message.reply_text(text)
     write_users()
         
@@ -401,9 +472,9 @@ def when3season(bot, update): # отвечает на "Когда третий �
     ser = 0
     if ser_1 > now:
         bot.message.reply_text('Блин, нового сезона еще нет(')
-        time.sleep(1)
+        time.sleep(SLEEP_TIME)
         update.bot.send_photo(chat_id=bot.message.chat.id, photo=open('NEWSEASON/notyet.png', 'rb'))
-        time.sleep(1)
+        time.sleep(SLEEP_TIME)
         bot.message.reply_text('Но как только он выйдет, я обязательно тебе сообщу)')
     else:
         if ser_7 <= now:
@@ -422,11 +493,11 @@ def when3season(bot, update): # отвечает на "Когда третий �
             ser = 1
 
         bot.message.reply_text('Ура, вышла серия {}!'.format(ser))
-        time.sleep(1)
+        time.sleep(SLEEP_TIME)
         update.bot.send_photo(chat_id=bot.message.chat.id, photo=open('NEWSEASON/out.png', 'rb'))
-        time.sleep(1)
+        time.sleep(SLEEP_TIME)
         bot.message.reply_text('А ну бегом смотреть')
-        time.sleep(1)
+        time.sleep(SLEEP_TIME)
         bot.message.reply_text('https://jut.su/kaguya-sama/')
     write_users()
 
@@ -456,11 +527,11 @@ def sendday(bot, update): # отвечает на "Какой сегодня д�
     elif weekday == 6:
         pic = 'DAY/sunday.jpg'
 
-    time.sleep(1)
+    time.sleep(SLEEP_TIME)
     update.bot.send_photo(chat_id=bot.message.chat.id, photo=open(pic, 'rb'))
-    time.sleep(1)
+    time.sleep(SLEEP_TIME)
     bot.message.reply_text('Сегодня:\n' + HOLIDAYS[str(date.today().day) + ' ' + MONTHS[date.today().month-1]])
-    time.sleep(1)
+    time.sleep(SLEEP_TIME)
     if USERS[usr_id]['mood'] < 0:
         rep = 'Хуёвого дня'
     else:
