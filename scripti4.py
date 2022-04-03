@@ -386,7 +386,7 @@ def reply(bot, update): # ответ на обычное сообщение
     msg = clear_msg(bot.message.text)
     mrp_m = USERS[usr_id]['max_rating_pos_msgs']
     mrn_m = USERS[usr_id]['max_rating_neg_msgs']
-    if msg not in USERS[usr_id]['top_messages']:
+    if msg not in USERS[usr_id]['top_messages'] and msg != 'Кагуя':
         while len(USERS[usr_id]['top_messages']) >= TOP_MESSAGES_SIZE:
             min_r = float('inf')
             del_m = ''
