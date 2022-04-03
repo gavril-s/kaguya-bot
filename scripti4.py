@@ -86,9 +86,11 @@ MONTHS = ['января', 'февраля', 'марта', 'апреля', 'ма�
 ADMINS_ID = ['441875037', '635725092'] # админы - Тимка и Ганька
 
 MOOD_FADING = 0.6816901138162094 # коэффициент затухания настроения
-MESSAGE_RATING_FADING = 0.05 # коэффициент затухания рейтинга сообщения
-REPLY_WITH_USR_MSG = 0.3 # вероятность ответа сообщением пользователя (из top_messages)
-TOP_MESSAGES_SIZE = 100 # количество сообщений в топе
+MESSAGE_RATING_FADING = 0.6 # коэффициент затухания рейтинга сообщения
+REPLY_WITH_USR_MSG = 0.35 # вероятность ответа сообщением пользователя (из top_messages)
+TOP_MESSAGES_SIZE = 500 # количество сообщений в топе
+MAX_RATING_POS_MSGS_SIZE = 20
+MAX_RATING_NEG_MSGS_SIZE = 20
 SLEEP_TIME = 0.5 # задержка в отправке сообщений, шобы на человека было похоже (в секундах)
 
 MORPH = pymorphy2.MorphAnalyzer()
@@ -125,10 +127,10 @@ def read_users():
         f = io.open('users.json', mode='r', encoding='utf-8').read()
         USERS = json.loads(f)
         for id in USERS:
-            if 'max_rating_pos_msg' not in USERS[id]:
-                USERS[id]['max_rating_pos_msg'] = ''
-            if 'max_rating_neg_msg' not in USERS[id]:
-                USERS[id]['max_rating_neg_msg'] = ''
+            if 'max_rating_pos_msgs' not in USERS[id]:
+                USERS[id]['max_rating_pos_msgs'] = []
+            if 'max_rating_neg_msgs' not in USERS[id]:
+                USERS[id]['max_rating_neg_msgs'] = []
             if 'top_messages' not in USERS[id]:
                 USERS[id]['top_messages'] = dict()
     except Exception:
@@ -158,8 +160,8 @@ def register_user(msg): # пажилая регистрация...
         'msg_count' : 0,
         'pics_unlocked' : 0,
         'pics': [False] * len(glob('LEGS/*')),
-        'max_rating_pos_msg': '',
-        'max_rating_neg_msg': '',
+        'max_rating_pos_msgs': [],
+        'max_rating_neg_msgs': [],
         'top_messages': dict() # топ сообщений челика
     }
 
@@ -354,7 +356,11 @@ def reply(bot, update): # ответ на обычное сообщение
                 rep = NEGATIVE_QUIESTION_ANSWERS[random.randint(0, len(NEGATIVE_QUIESTION_ANSWERS) - 1)]
             else:
                 if random.random() <= REPLY_WITH_USR_MSG and len(USERS[usr_id]['top_messages']) > 0:
-                    rep = USERS[usr_id]['max_rating_neg_msg']
+                    attempts = 0
+                    rep = USERS[usr_id]['max_rating_neg_msgs'][random.randint(0, len(USERS[usr_id]['max_rating_neg_msgs']) - 1)]
+                    while attempts <= 5 and time.time() - USERS[usr_id]['top_messages'][rep]['time'] <= 30:
+                        rep = USERS[usr_id]['max_rating_neg_msgs'][random.randint(0, len(USERS[usr_id]['max_rating_neg_msgs']) - 1)]
+                        attempts += 1
                     if rep == '':
                         rep = NEGATIVE_REPLIES[random.randint(0, len(NEGATIVE_REPLIES) - 1)]
                 else:
@@ -364,7 +370,11 @@ def reply(bot, update): # ответ на обычное сообщение
                 rep = POSITIVE_QUESTION_ANSWERS[random.randint(0, len(POSITIVE_QUESTION_ANSWERS) - 1)]
             else:
                 if random.random() <= REPLY_WITH_USR_MSG and len(USERS[usr_id]['top_messages']) > 0:
-                    rep =  USERS[usr_id]['max_rating_pos_msg']
+                    attempts = 0
+                    rep = USERS[usr_id]['max_rating_pos_msgs'][random.randint(0, len(USERS[usr_id]['max_rating_pos_msgs']) - 1)]
+                    while attempts <= 5 and time.time() - USERS[usr_id]['top_messages'][rep]['time'] <= 30:
+                        rep = USERS[usr_id]['max_rating_pos_msgs'][random.randint(0, len(USERS[usr_id]['max_rating_pos_msgs']) - 1)]
+                        attempts += 1
                     if rep == '':
                         rep = POSITIVE_REPLIES[random.randint(0, len(POSITIVE_REPLIES) - 1)]
                 else:
@@ -374,8 +384,8 @@ def reply(bot, update): # ответ на обычное сообщение
     for m in USERS[usr_id]['top_messages']:
         USERS[usr_id]['top_messages'][m]['rating'] *= 1 - MESSAGE_RATING_FADING
     msg = clear_msg(bot.message.text)
-    mrp_m = USERS[usr_id]['max_rating_pos_msg']
-    mrn_m = USERS[usr_id]['max_rating_neg_msg']
+    mrp_m = USERS[usr_id]['max_rating_pos_msgs']
+    mrn_m = USERS[usr_id]['max_rating_neg_msgs']
     if msg not in USERS[usr_id]['top_messages']:
         while len(USERS[usr_id]['top_messages']) >= TOP_MESSAGES_SIZE:
             min_r = float('inf')
@@ -392,16 +402,44 @@ def reply(bot, update): # ответ на обычное сообщение
             'time' : time.time()
         }
         
-        if USERS[usr_id]['top_messages'][msg]['rating'] >= USERS[usr_id]['top_messages'][mrp_m]['rating'] and USERS[usr_id]['top_messages'][msg]['emo_rate'] >= 0:
-            USERS[usr_id]['max_rating_pos_msg'] = msg
-        if USERS[usr_id]['top_messages'][msg]['rating'] >= USERS[usr_id]['top_messages'][mrn_m]['rating'] and USERS[usr_id]['top_messages'][msg]['emo_rate'] < 0:
-            USERS[usr_id]['max_rating_neg_msg'] = msg
+        if USERS[usr_id]['top_messages'][msg]['emo_rate'] >= 0 and (len(mrp_m) < MAX_RATING_POS_MSGS_SIZE or USERS[usr_id]['top_messages'][msg]['rating'] > USERS[usr_id]['top_messages'][mrp_m[-1]]['rating']):
+            if len(mrp_m) >= MAX_RATING_POS_MSGS_SIZE:
+                mrp_m.pop(-1)
+            mrp_m.append(msg)
+            i = len(mrp_m) - 1
+            while i > 0 and USERS[usr_id]['top_messages'][mrp_m[i]]['rating'] > USERS[usr_id]['top_messages'][mrp_m[i - 1]]['rating']:
+                mrp_m[i], mrp_m[i - 1] = mrp_m[i - 1], mrp_m[i]
+                i -= 1
+            USERS[usr_id]['max_rating_pos_msgs'] = mrp_m
+        if USERS[usr_id]['top_messages'][msg]['emo_rate'] < 0 and (len(mrn_m) < MAX_RATING_NEG_MSGS_SIZE or USERS[usr_id]['top_messages'][msg]['rating'] > USERS[usr_id]['top_messages'][mrn_m[-1]]['rating']):
+            if len(mrn_m) >= MAX_RATING_NEG_MSGS_SIZE:
+                mrn_m.pop(-1)
+            mrn_m.append(msg)
+            i = len(mrn_m) - 1
+            while i > 0 and USERS[usr_id]['top_messages'][mrn_m[i]]['rating'] > USERS[usr_id]['top_messages'][mrn_m[i - 1]]['rating']:
+                mrn_m[i], mrn_m[i - 1] = mrn_m[i - 1], mrn_m[i]
+                i -= 1
+            USERS[usr_id]['max_rating_neg_msgs'] = mrn_m
     else:
         USERS[usr_id]['top_messages'][msg]['rating'] += 1
-        if USERS[usr_id]['top_messages'][msg]['rating'] >= USERS[usr_id]['top_messages'][mrp_m]['rating'] and USERS[usr_id]['top_messages'][msg]['emo_rate'] >= 0:
-            USERS[usr_id]['max_rating_pos_msg'] = msg
-        if USERS[usr_id]['top_messages'][msg]['rating'] >= USERS[usr_id]['top_messages'][mrn_m]['rating'] and USERS[usr_id]['top_messages'][msg]['emo_rate'] < 0:
-            USERS[usr_id]['max_rating_neg_msg'] = msg
+        if USERS[usr_id]['top_messages'][msg]['emo_rate'] >= 0 and (len(mrp_m) < MAX_RATING_POS_MSGS_SIZE or USERS[usr_id]['top_messages'][msg]['rating'] > USERS[usr_id]['top_messages'][mrp_m[-1]]['rating']):
+            if len(mrp_m) >= MAX_RATING_POS_MSGS_SIZE:
+                mrp_m.pop(-1)
+            mrp_m.append(msg)
+            i = len(mrp_m) - 1
+            while i > 0 and USERS[usr_id]['top_messages'][mrp_m[i]]['rating'] > USERS[usr_id]['top_messages'][mrp_m[i - 1]]['rating']:
+                mrp_m[i], mrp_m[i - 1] = mrp_m[i - 1], mrp_m[i]
+                i -= 1
+            USERS[usr_id]['max_rating_pos_msgs'] = mrp_m
+        if USERS[usr_id]['top_messages'][msg]['emo_rate'] < 0 and (len(mrn_m) < MAX_RATING_NEG_MSGS_SIZE or USERS[usr_id]['top_messages'][msg]['rating'] > USERS[usr_id]['top_messages'][mrn_m[-1]]['rating']):
+            if len(mrn_m) >= MAX_RATING_NEG_MSGS_SIZE:
+                mrn_m.pop(-1)
+            mrn_m.append(msg)
+            i = len(mrn_m) - 1
+            while i > 0 and USERS[usr_id]['top_messages'][mrn_m[i]]['rating'] > USERS[usr_id]['top_messages'][mrn_m[i - 1]]['rating']:
+                mrn_m[i], mrn_m[i - 1] = mrn_m[i - 1], mrn_m[i]
+                i -= 1
+            USERS[usr_id]['max_rating_neg_msgs'] = mrn_m
     write_users()
 
 def whoami(bot, update): # отвечает на "Кто я сегодня?"
