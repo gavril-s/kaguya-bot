@@ -134,11 +134,15 @@ def read_users():
                 USERS[id]['max_rating_neg_msgs'] = []
             if 'top_messages' not in USERS[id]:
                 USERS[id]['top_messages'] = dict()
+            if 'waiting_for_random' not in USERS[id]:
+                USERS[id]['waiting_for_random'] = False
+            if 'rand_max' not in USERS[id]:
+                USERS[id]['rand_max'] = 0
     except Exception:
         f = io.open('users.json', mode='w', encoding='utf-8')
         f.write('{}')
         USERS = dict()
-    print(USERS)
+    #print(USERS)
 
 def write_users():
     f = io.open('users.json', mode='w', encoding='utf-8')
@@ -157,7 +161,9 @@ def register_user(msg): # пажилая регистрация...
         'username': username,
         'mood' : 0,
         'city' : '',
+        'rand_max': 0,
         'waiting_for_city' : False,
+        'waiting_for_random' : False,
         'msg_count' : 0,
         'pics_unlocked' : 0,
         'pics': [False] * len(glob('LEGS/*')),
@@ -262,6 +268,8 @@ def sms(bot, update): # отвечает на /start
     USERS[usr_id]['msg_count'] += 1
     if USERS[usr_id]['waiting_for_city']:
         USERS[usr_id]['waiting_for_city'] = False
+    if USERS[usr_id]['waiting_for_random']:
+        USERS[usr_id]['waiting_for_random'] = False
     keyboard = ReplyKeyboardMarkup([['Скинь ножки', 'Какой сегодня день?'], ['Кто я сегодня?', 'Когда новый сезон?'], ['Какая погода сейчас?', 'Рандомчик']], resize_keyboard=True)
     bot.message.reply_text('Охае, {}!'.format(bot.message.chat.first_name))
     time.sleep(SLEEP_TIME)
@@ -277,6 +285,8 @@ def help_user(bot, update): # отвечает на /help
     USERS[usr_id]['msg_count'] += 1
     if USERS[usr_id]['waiting_for_city']:
         USERS[usr_id]['waiting_for_city'] = False
+    if USERS[usr_id]['waiting_for_random']:
+        USERS[usr_id]['waiting_for_random'] = False
     bot.message.reply_text('Помоги себе сам, ёпта')
     write_users()    
 
@@ -288,6 +298,8 @@ def stat(bot, update): # отвечает на /stat
     USERS[usr_id]['msg_count'] += 1
     if USERS[usr_id]['waiting_for_city']:
         USERS[usr_id]['waiting_for_city'] = False
+    if USERS[usr_id]['waiting_for_random']:
+        USERS[usr_id]['waiting_for_random'] = False
 
     if usr_id in ADMINS_ID:
         for u in USERS:
@@ -306,6 +318,16 @@ def reply(bot, update): # ответ на обычное сообщение
         USERS[usr_id]['city'] = bot.message.text
         USERS[usr_id]['waiting_for_city'] = False
         sendweather(bot, update)
+        return
+    if USERS[usr_id]['waiting_for_random']:
+        try:
+            USERS[usr_id]['rand_max'] = int(bot.message.text)
+        except Exception:
+            USERS[usr_id]['rand_max'] = -1
+        if USERS[usr_id]['rand_max'] == 0:
+            USERS[usr_id]['rand_max'] = -1
+        USERS[usr_id]['waiting_for_random'] = False
+        dorandom(bot, update)
         return
     emo_rate = compute_emo_rate(bot.message.text)
     USERS[usr_id]['mood'] = MOOD_FADING * USERS[usr_id]['mood'] + emo_rate
@@ -461,21 +483,34 @@ def whoami(bot, update): # отвечает на "Кто я сегодня?"
     bot.message.reply_text('{}, ты сегодня такой {}'.format(bot.message.chat.first_name, rep))
     write_users()
 
-def dorandom(bot, update):  # отвечает на "Рандомчик"
+def dorandom(bot, update): # отвечает на "Рандомчик"
+    global CONTROL_MSGS
     global USERS
-    usr_id = get_id_bymsg(bot.message)
-    check_registration_bymsg(bot.message)
-    log(bot.message)
-    USERS[usr_id]['msg_count'] += 1
+    try:
+        usr_id = get_id_bymsg(bot.message)
+        check_registration_bymsg(bot.message)
+    except Exception:
+        usr_id = get_id_bymsg(CONTROL_MSGS[get_id(bot)])
+        check_registration_bymsg(CONTROL_MSGS[get_id(bot)])
+    if bot.message != None:
+        USERS[usr_id]['msg_count'] += 1
+        CONTROL_MSGS[get_id(bot)] = bot.message
+        log(bot.message)
     if USERS[usr_id]['waiting_for_city']:
         USERS[usr_id]['waiting_for_city'] = False
-    bot.message.reply_text('Хорошо, я должна назвать рандомное число от 1 до... ')
-    time.sleep(SLEEP_TIME)
-    try:
-        rand = random.randint(1, int(bot.message.text))
-        bot.message.reply_text('Не знаю, зачем тебе это, но пусть будет {}.', format(rand))
-    except Exception:
-        bot.message.reply_text('Эмм...')
+    if USERS[usr_id]['waiting_for_random']:
+        USERS[usr_id]['waiting_for_random'] = False
+    
+    if USERS[usr_id]['rand_max'] == 0:
+        bot.message.reply_text('Хорошо, я должна назвать рандомное число от 1 до .. ?')
+        USERS[usr_id]['waiting_for_random'] = True
+    else:
+        try:
+            rand = random.randint(1, USERS[usr_id]['rand_max'])
+            CONTROL_MSGS[get_id(bot)].reply_text('Не знаю, зачем тебе это, но пусть будет ' + str(rand) + '.')
+        except Exception:
+            CONTROL_MSGS[get_id(bot)].reply_text('Эмм...')
+        USERS[usr_id]['rand_max'] = 0
     write_users()
 
 def sendlegs(bot, update): # отвечает на "Скинь ножки"
@@ -486,6 +521,8 @@ def sendlegs(bot, update): # отвечает на "Скинь ножки"
     USERS[usr_id]['msg_count'] += 1
     if USERS[usr_id]['waiting_for_city']:
         USERS[usr_id]['waiting_for_city'] = False
+    if USERS[usr_id]['waiting_for_random']:
+        USERS[usr_id]['waiting_for_random'] = False
     if USERS[usr_id]['mood'] < 0:
         rep = NEGATIVE_QUIESTION_ANSWERS[random.randint(0, len(NEGATIVE_QUIESTION_ANSWERS) - 1)]
         bot.message.reply_text(rep)
@@ -519,6 +556,8 @@ def when3season(bot, update): # отвечает на "Когда третий �
     USERS[usr_id]['msg_count'] += 1
     if USERS[usr_id]['waiting_for_city']:
         USERS[usr_id]['waiting_for_city'] = False
+    if USERS[usr_id]['waiting_for_random']:
+        USERS[usr_id]['waiting_for_random'] = False
     now = date.today()
     ser_1 = date(2022, 4, 9)
     ser_2 = date(2022, 4, 16)
@@ -567,6 +606,8 @@ def sendday(bot, update): # отвечает на "Какой сегодня д�
     USERS[usr_id]['msg_count'] += 1
     if USERS[usr_id]['waiting_for_city']:
         USERS[usr_id]['waiting_for_city'] = False
+    if USERS[usr_id]['waiting_for_random']:
+        USERS[usr_id]['waiting_for_random'] = False
     bot.message.reply_text('Хммм, дай-ка подумать')
     pic = ''
     weekday = datetime.datetime.today().weekday()
@@ -629,6 +670,8 @@ def sendweather(bot, update): # отправляет погоду
         log(bot.message)
     if USERS[usr_id]['waiting_for_city']:
         USERS[usr_id]['waiting_for_city'] = False
+    if USERS[usr_id]['waiting_for_random']:
+        USERS[usr_id]['waiting_for_random'] = False
     if USERS[usr_id]['city'] == '':
         USERS[usr_id]['waiting_for_city'] = True
         CONTROL_MSGS[get_id(bot)].reply_text('Напиши название города')
@@ -654,6 +697,7 @@ def main(): # БАЗА
     read_words()
     read_holidays()
     read_users()
+    print('Started')
     bot = Updater("5260290537:AAGWg9J4a5dZDqsrq3MG3fejuBvD-0tasOA", use_context=True)
     bot.dispatcher.add_handler(CommandHandler('start', sms))
     bot.dispatcher.add_handler(CommandHandler('help', help_user))
