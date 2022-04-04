@@ -262,7 +262,7 @@ def sms(bot, update): # отвечает на /start
     USERS[usr_id]['msg_count'] += 1
     if USERS[usr_id]['waiting_for_city']:
         USERS[usr_id]['waiting_for_city'] = False
-    keyboard = ReplyKeyboardMarkup([['Скинь ножки', 'Какой сегодня день?'], ['Кто я сегодня?', 'Когда новый сезон?'], ['Какая погода сейчас?']], resize_keyboard=True)
+    keyboard = ReplyKeyboardMarkup([['Скинь ножки', 'Какой сегодня день?'], ['Кто я сегодня?', 'Когда новый сезон?'], ['Какая погода сейчас?', 'Рандомчик']], resize_keyboard=True)
     bot.message.reply_text('Охае, {}!'.format(bot.message.chat.first_name))
     time.sleep(SLEEP_TIME)
     bot.message.reply_text("Меня зовут Кагуя Синомия. Чем могу помочь?", reply_markup=keyboard)
@@ -461,6 +461,24 @@ def whoami(bot, update): # отвечает на "Кто я сегодня?"
     bot.message.reply_text('{}, ты сегодня такой {}'.format(bot.message.chat.first_name, rep))
     write_users()
 
+def dorandom(bot, update):  # отвечает на "Рандомчик"
+    global USERS
+    usr_id = get_id_bymsg(bot.message)
+    check_registration_bymsg(bot.message)
+    log(bot.message)
+    USERS[usr_id]['msg_count'] += 1
+    if USERS[usr_id]['waiting_for_city']:
+        USERS[usr_id]['waiting_for_city'] = False
+    bot.message.reply_text('Хорошо, я должна назвать рандомное число от 1 до...')
+    num = int(bot.message.text)
+    time.sleep(SLEEP_TIME)
+    try:
+        rand = random.randint(1, num)
+        bot.message.reply_text('Не знаю, зачем тебе это, но пусть будет {}.', format(rand))
+    except Exception:
+        bot.message.reply_text('Эмм...')
+    write_users()
+
 def sendlegs(bot, update): # отвечает на "Скинь ножки"
     global USERS
     usr_id = get_id_bymsg(bot.message)
@@ -643,6 +661,7 @@ def main(): # БАЗА
     bot.dispatcher.add_handler(CommandHandler('stat', stat))
     bot.dispatcher.add_handler(MessageHandler(Filters.regex('Кто я сегодня?'), whoami))
     bot.dispatcher.add_handler(MessageHandler(Filters.regex('Скинь ножки'), sendlegs))
+    bot.dispatcher.add_handler(MessageHandler(Filters.regex('Рандомчик'), dorandom))
     bot.dispatcher.add_handler(MessageHandler(Filters.regex('Какой сегодня день?'), sendday))
     bot.dispatcher.add_handler(MessageHandler(Filters.regex('Когда новый сезон?'), when3season))
     bot.dispatcher.add_handler(MessageHandler(Filters.regex('Какая погода сейчас?'), sendweather_handler))
