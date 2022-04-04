@@ -273,7 +273,7 @@ def sms(bot, update): # отвечает на /start
     keyboard = ReplyKeyboardMarkup([['Скинь ножки', 'Какой сегодня день?'], ['Кто я сегодня?', 'Когда новый сезон?'], ['Какая погода сейчас?', 'Рандомчик']], resize_keyboard=True)
     bot.message.reply_text('Охае, {}!'.format(bot.message.chat.first_name))
     time.sleep(SLEEP_TIME)
-    bot.message.reply_text("Меня зовут Кагуя Синомия. Чем могу помочь?", reply_markup=keyboard)
+    bot.message.reply_text("Меня зовут Кагуя Синомия. Давай поболтаем (чтобы увидеть всё, что я могу, напиши /help)", reply_markup=keyboard)
     #update.bot.send_sticker(chat_id=update.message.chat_id, sticker='CAADAgADOQADfyesDlKEqOOd72VKAg')
     write_users()
 
@@ -287,7 +287,11 @@ def help_user(bot, update): # отвечает на /help
         USERS[usr_id]['waiting_for_city'] = False
     if USERS[usr_id]['waiting_for_random']:
         USERS[usr_id]['waiting_for_random'] = False
-    bot.message.reply_text('Помоги себе сам, ёпта')
+    help_text = 'Привет, меня зовут Кагуя!\nМожешь потыкать на кнопки или написать мне обычное сообщение, я отвечу.\n'
+    help_text += 'Если у тебя не отображаются какие-то функции, пропиши ещё раз /start.\n'
+    help_text += 'Чтобы увидеть статистику по использованию бота, напиши /stat.\n'
+    help_text += 'Если у тебя возникли какие-либо вопросы по использованию бота, пиши [данные удалены] :)'
+    bot.message.reply_text(help_text)
     write_users()    
 
 def stat(bot, update): # отвечает на /stat
