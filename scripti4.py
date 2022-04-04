@@ -469,11 +469,10 @@ def dorandom(bot, update):  # отвечает на "Рандомчик"
     USERS[usr_id]['msg_count'] += 1
     if USERS[usr_id]['waiting_for_city']:
         USERS[usr_id]['waiting_for_city'] = False
-    bot.message.reply_text('Хорошо, я должна назвать рандомное число от 1 до...')
-    num = int(bot.message.text)
+    bot.message.reply_text('Хорошо, я должна назвать рандомное число от 1 до... ')
     time.sleep(SLEEP_TIME)
     try:
-        rand = random.randint(1, num)
+        rand = random.randint(1, int(bot.message.text))
         bot.message.reply_text('Не знаю, зачем тебе это, но пусть будет {}.', format(rand))
     except Exception:
         bot.message.reply_text('Эмм...')
