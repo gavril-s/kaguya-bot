@@ -296,7 +296,7 @@ def help_user(bot, update): # отвечает на /help
         USERS[usr_id]['waiting_for_city'] = False
     if USERS[usr_id]['waiting_for_random']:
         USERS[usr_id]['waiting_for_random'] = False
-    if USERS[usr_id]['last_usage'] > CRITICAL_LAST_USAGE_TIME:
+    if time.time() - USERS[usr_id]['last_usage'] > CRITICAL_LAST_USAGE_TIME:
         greeting_to_unseen_user(bot.message)
     help_text = 'Привет, меня зовут Кагуя!\nМожешь потыкать на кнопки или написать мне обычное сообщение, я отвечу.\n'
     help_text += 'Если у тебя не отображаются какие-то функции, пропиши ещё раз /start.\n'
@@ -316,7 +316,7 @@ def stat(bot, update): # отвечает на /stat
         USERS[usr_id]['waiting_for_city'] = False
     if USERS[usr_id]['waiting_for_random']:
         USERS[usr_id]['waiting_for_random'] = False
-    if USERS[usr_id]['last_usage'] > CRITICAL_LAST_USAGE_TIME:
+    if time.time() - USERS[usr_id]['last_usage'] > CRITICAL_LAST_USAGE_TIME:
         greeting_to_unseen_user(bot.message)
 
     if usr_id in ADMINS_ID:
@@ -348,7 +348,7 @@ def reply(bot, update): # ответ на обычное сообщение
         USERS[usr_id]['waiting_for_random'] = False
         dorandom(bot, update)
         return
-    if USERS[usr_id]['last_usage'] > CRITICAL_LAST_USAGE_TIME:
+    if time.time() - USERS[usr_id]['last_usage'] > CRITICAL_LAST_USAGE_TIME:
         greeting_to_unseen_user(bot.message)
     emo_rate = compute_emo_rate(bot.message.text)
     USERS[usr_id]['mood'] = MOOD_FADING * USERS[usr_id]['mood'] + emo_rate
@@ -497,7 +497,7 @@ def whoami(bot, update): # отвечает на "Кто я сегодня?"
     USERS[usr_id]['msg_count'] += 1
     if USERS[usr_id]['waiting_for_city']:
         USERS[usr_id]['waiting_for_city'] = False
-    if USERS[usr_id]['last_usage'] > CRITICAL_LAST_USAGE_TIME:
+    if time.time() - USERS[usr_id]['last_usage'] > CRITICAL_LAST_USAGE_TIME:
         greeting_to_unseen_user(bot.message)
     if USERS[usr_id]['mood'] < 0:
         rep = NEGATIVE_WHOAMI_REPLIES[random.randint(0, len(NEGATIVE_WHOAMI_REPLIES) - 1)]
@@ -525,7 +525,7 @@ def dorandom(bot, update): # отвечает на "Рандомчик"
         USERS[usr_id]['waiting_for_city'] = False
     if USERS[usr_id]['waiting_for_random']:
         USERS[usr_id]['waiting_for_random'] = False
-    if USERS[usr_id]['last_usage'] > CRITICAL_LAST_USAGE_TIME:
+    if time.time() - USERS[usr_id]['last_usage'] > CRITICAL_LAST_USAGE_TIME:
         greeting_to_unseen_user(bot.message)
     
     if USERS[usr_id]['rand_max'] == 0:
@@ -551,7 +551,7 @@ def sendlegs(bot, update): # отвечает на "Скинь ножки"
         USERS[usr_id]['waiting_for_city'] = False
     if USERS[usr_id]['waiting_for_random']:
         USERS[usr_id]['waiting_for_random'] = False
-    if USERS[usr_id]['last_usage'] > CRITICAL_LAST_USAGE_TIME:
+    if time.time() - USERS[usr_id]['last_usage'] > CRITICAL_LAST_USAGE_TIME:
         greeting_to_unseen_user(bot.message)
     if USERS[usr_id]['mood'] < 0:
         rep = NEGATIVE_QUIESTION_ANSWERS[random.randint(0, len(NEGATIVE_QUIESTION_ANSWERS) - 1)]
@@ -588,7 +588,7 @@ def when3season(bot, update): # отвечает на "Когда третий �
         USERS[usr_id]['waiting_for_city'] = False
     if USERS[usr_id]['waiting_for_random']:
         USERS[usr_id]['waiting_for_random'] = False
-    if USERS[usr_id]['last_usage'] > CRITICAL_LAST_USAGE_TIME:
+    if time.time() - USERS[usr_id]['last_usage'] > CRITICAL_LAST_USAGE_TIME:
         greeting_to_unseen_user(bot.message)
     now = date.today()
     ser_1 = date(2022, 4, 9)
@@ -641,7 +641,7 @@ def sendday(bot, update): # отвечает на "Какой сегодня д�
         USERS[usr_id]['waiting_for_city'] = False
     if USERS[usr_id]['waiting_for_random']:
         USERS[usr_id]['waiting_for_random'] = False
-    if USERS[usr_id]['last_usage'] > CRITICAL_LAST_USAGE_TIME:
+    if time.time() - USERS[usr_id]['last_usage'] > CRITICAL_LAST_USAGE_TIME:
         greeting_to_unseen_user(bot.message)
     bot.message.reply_text('Хммм, дай-ка подумать')
     pic = ''
@@ -708,7 +708,7 @@ def sendweather(bot, update): # отправляет погоду
         USERS[usr_id]['waiting_for_city'] = False
     if USERS[usr_id]['waiting_for_random']:
         USERS[usr_id]['waiting_for_random'] = False
-    if USERS[usr_id]['last_usage'] > CRITICAL_LAST_USAGE_TIME:
+    if time.time() - USERS[usr_id]['last_usage'] > CRITICAL_LAST_USAGE_TIME:
         try:
             greeting_to_unseen_user(bot.message)
         except Exception:
