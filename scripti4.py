@@ -92,7 +92,9 @@ REPLY_WITH_USR_MSG = 0.35 # вероятность ответа сообщени
 TOP_MESSAGES_SIZE = 500 # количество сообщений в топе
 MAX_RATING_POS_MSGS_SIZE = 20
 MAX_RATING_NEG_MSGS_SIZE = 20
-SLEEP_TIME = 0.5 # задержка в отправке сообщений, шобы на человека было похоже (в секундах)
+DEFAULT_RATING = 100 # рейтинг сообщения по умолчанию
+CRITICAL_LAST_USAGE_TIME = 1_209_600 # (в секундах) две недели
+SLEEP_TIME = 0.6 # задержка в отправке сообщений, шобы на человека было похоже (в секундах)
 
 MORPH = pymorphy2.MorphAnalyzer()
 CONTROL_MSGS = dict() # контрольное сообщение, на которое можно ответить, если юзер нихуя не написал
@@ -138,6 +140,8 @@ def read_users():
                 USERS[id]['waiting_for_random'] = False
             if 'rand_max' not in USERS[id]:
                 USERS[id]['rand_max'] = 0
+            if 'last_usage' not in USERS[id]:
+                USERS[id]['last_usage'] = 0.0
     except Exception:
         f = io.open('users.json', mode='w', encoding='utf-8')
         f.write('{}')
@@ -169,7 +173,8 @@ def register_user(msg): # пажилая регистрация...
         'pics': [False] * len(glob('LEGS/*')),
         'max_rating_pos_msgs': [],
         'max_rating_neg_msgs': [],
-        'top_messages': dict() # топ сообщений челика
+        'top_messages': dict(), # топ сообщений челика
+        'last_usage' : time.time() # время последнего использования
     }
 
 def check_registration(bot):
@@ -260,6 +265,9 @@ def get_admin_stat(usr_id): # выдаёт админам личные данн�
 #############################
 # А ВОТ ТУТ УЖЕ РЕАЛ БОТИК
 
+def greeting_to_unseen_user(msg): # тебя давно не было в уличных гонках
+    msg.reply_text('Я давно тебя не видела, сенпай!\nНа всякий случай, пропиши ещё раз\n/start - вдруг во мне появились новые функции!')
+
 def sms(bot, update): # отвечает на /start
     global USERS
     usr_id = get_id_bymsg(bot.message)
@@ -275,6 +283,7 @@ def sms(bot, update): # отвечает на /start
     time.sleep(SLEEP_TIME)
     bot.message.reply_text("Меня зовут Кагуя Синомия. Давай поболтаем (чтобы увидеть всё, что я могу, напиши /help)", reply_markup=keyboard)
     #update.bot.send_sticker(chat_id=update.message.chat_id, sticker='CAADAgADOQADfyesDlKEqOOd72VKAg')
+    USERS[usr_id]['last_usage'] = time.time()
     write_users()
 
 def help_user(bot, update): # отвечает на /help
@@ -287,11 +296,14 @@ def help_user(bot, update): # отвечает на /help
         USERS[usr_id]['waiting_for_city'] = False
     if USERS[usr_id]['waiting_for_random']:
         USERS[usr_id]['waiting_for_random'] = False
+    if USERS[usr_id]['last_usage'] > CRITICAL_LAST_USAGE_TIME:
+        greeting_to_unseen_user(bot.message)
     help_text = 'Привет, меня зовут Кагуя!\nМожешь потыкать на кнопки или написать мне обычное сообщение, я отвечу.\n'
     help_text += 'Если у тебя не отображаются какие-то функции, пропиши ещё раз /start.\n'
     help_text += 'Чтобы увидеть статистику по использованию бота, напиши /stat.\n'
     help_text += 'Если у тебя возникли какие-либо вопросы по использованию бота, пиши [данные удалены] :)'
     bot.message.reply_text(help_text)
+    USERS[usr_id]['last_usage'] = time.time()
     write_users()    
 
 def stat(bot, update): # отвечает на /stat
@@ -304,12 +316,15 @@ def stat(bot, update): # отвечает на /stat
         USERS[usr_id]['waiting_for_city'] = False
     if USERS[usr_id]['waiting_for_random']:
         USERS[usr_id]['waiting_for_random'] = False
+    if USERS[usr_id]['last_usage'] > CRITICAL_LAST_USAGE_TIME:
+        greeting_to_unseen_user(bot.message)
 
     if usr_id in ADMINS_ID:
         for u in USERS:
             bot.message.reply_text(get_admin_stat(u))
     else:
         bot.message.reply_text(get_stat(usr_id))
+    USERS[usr_id]['last_usage'] = time.time()
     write_users()
 
 def reply(bot, update): # ответ на обычное сообщение
@@ -333,6 +348,8 @@ def reply(bot, update): # ответ на обычное сообщение
         USERS[usr_id]['waiting_for_random'] = False
         dorandom(bot, update)
         return
+    if USERS[usr_id]['last_usage'] > CRITICAL_LAST_USAGE_TIME:
+        greeting_to_unseen_user(bot.message)
     emo_rate = compute_emo_rate(bot.message.text)
     USERS[usr_id]['mood'] = MOOD_FADING * USERS[usr_id]['mood'] + emo_rate
     if -0.1 < USERS[usr_id]['mood'] < 0 and emo_rate >= 0: # если Кагуя не сильно злится, а чел не сильно злит
@@ -427,7 +444,7 @@ def reply(bot, update): # ответ на обычное сообщение
         USERS[usr_id]['top_messages'][msg] = {
             'text' : msg,
             'emo_rate' : compute_emo_rate(bot.message.text),
-            'rating' : 1,
+            'rating' : DEFAULT_RATING,
             'time' : time.time()
         }
         
@@ -469,6 +486,7 @@ def reply(bot, update): # ответ на обычное сообщение
                 mrn_m[i], mrn_m[i - 1] = mrn_m[i - 1], mrn_m[i]
                 i -= 1
             USERS[usr_id]['max_rating_neg_msgs'] = mrn_m
+    USERS[usr_id]['last_usage'] = time.time()
     write_users()
 
 def whoami(bot, update): # отвечает на "Кто я сегодня?"
@@ -479,12 +497,15 @@ def whoami(bot, update): # отвечает на "Кто я сегодня?"
     USERS[usr_id]['msg_count'] += 1
     if USERS[usr_id]['waiting_for_city']:
         USERS[usr_id]['waiting_for_city'] = False
+    if USERS[usr_id]['last_usage'] > CRITICAL_LAST_USAGE_TIME:
+        greeting_to_unseen_user(bot.message)
     if USERS[usr_id]['mood'] < 0:
         rep = NEGATIVE_WHOAMI_REPLIES[random.randint(0, len(NEGATIVE_WHOAMI_REPLIES) - 1)]
     else:
         rep = POSITIVE_WHOAMI_REPLIES[random.randint(0, len(POSITIVE_WHOAMI_REPLIES) - 1)]
     time.sleep(SLEEP_TIME)
     bot.message.reply_text('{}, ты сегодня такой {}'.format(bot.message.chat.first_name, rep))
+    USERS[usr_id]['last_usage'] = time.time()
     write_users()
 
 def dorandom(bot, update): # отвечает на "Рандомчик"
@@ -504,6 +525,8 @@ def dorandom(bot, update): # отвечает на "Рандомчик"
         USERS[usr_id]['waiting_for_city'] = False
     if USERS[usr_id]['waiting_for_random']:
         USERS[usr_id]['waiting_for_random'] = False
+    if USERS[usr_id]['last_usage'] > CRITICAL_LAST_USAGE_TIME:
+        greeting_to_unseen_user(bot.message)
     
     if USERS[usr_id]['rand_max'] == 0:
         bot.message.reply_text('Хорошо, я должна назвать рандомное число от 1 до .. ?')
@@ -515,6 +538,7 @@ def dorandom(bot, update): # отвечает на "Рандомчик"
         except Exception:
             CONTROL_MSGS[get_id(bot)].reply_text('Эмм...')
         USERS[usr_id]['rand_max'] = 0
+    USERS[usr_id]['last_usage'] = time.time()
     write_users()
 
 def sendlegs(bot, update): # отвечает на "Скинь ножки"
@@ -527,6 +551,8 @@ def sendlegs(bot, update): # отвечает на "Скинь ножки"
         USERS[usr_id]['waiting_for_city'] = False
     if USERS[usr_id]['waiting_for_random']:
         USERS[usr_id]['waiting_for_random'] = False
+    if USERS[usr_id]['last_usage'] > CRITICAL_LAST_USAGE_TIME:
+        greeting_to_unseen_user(bot.message)
     if USERS[usr_id]['mood'] < 0:
         rep = NEGATIVE_QUIESTION_ANSWERS[random.randint(0, len(NEGATIVE_QUIESTION_ANSWERS) - 1)]
         bot.message.reply_text(rep)
@@ -549,8 +575,8 @@ def sendlegs(bot, update): # отвечает на "Скинь ножки"
         update.bot.send_photo(chat_id=bot.message.chat.id, photo=open(pic, 'rb'))
         time.sleep(SLEEP_TIME)
         bot.message.reply_text(text)
+    USERS[usr_id]['last_usage'] = time.time()
     write_users()
-        
 
 def when3season(bot, update): # отвечает на "Когда третий сезон?"
     global USERS
@@ -562,6 +588,8 @@ def when3season(bot, update): # отвечает на "Когда третий �
         USERS[usr_id]['waiting_for_city'] = False
     if USERS[usr_id]['waiting_for_random']:
         USERS[usr_id]['waiting_for_random'] = False
+    if USERS[usr_id]['last_usage'] > CRITICAL_LAST_USAGE_TIME:
+        greeting_to_unseen_user(bot.message)
     now = date.today()
     ser_1 = date(2022, 4, 9)
     ser_2 = date(2022, 4, 16)
@@ -600,6 +628,7 @@ def when3season(bot, update): # отвечает на "Когда третий �
         bot.message.reply_text('А ну бегом смотреть')
         time.sleep(SLEEP_TIME)
         bot.message.reply_text('https://jut.su/kaguya-sama/')
+    USERS[usr_id]['last_usage'] = time.time()
     write_users()
 
 def sendday(bot, update): # отвечает на "Какой сегодня день?"
@@ -612,6 +641,8 @@ def sendday(bot, update): # отвечает на "Какой сегодня д�
         USERS[usr_id]['waiting_for_city'] = False
     if USERS[usr_id]['waiting_for_random']:
         USERS[usr_id]['waiting_for_random'] = False
+    if USERS[usr_id]['last_usage'] > CRITICAL_LAST_USAGE_TIME:
+        greeting_to_unseen_user(bot.message)
     bot.message.reply_text('Хммм, дай-ка подумать')
     pic = ''
     weekday = datetime.datetime.today().weekday()
@@ -640,6 +671,7 @@ def sendday(bot, update): # отвечает на "Какой сегодня д�
     else:
         rep = 'Хорошего дня'
     bot.message.reply_text('Это, кстати, {} {}. {}, {})'.format(date.today().day, MONTHS[date.today().month-1], rep, bot.message.chat.first_name))
+    USERS[usr_id]['last_usage'] = time.time()
     write_users()
 
 def weather(city: str): # получает погоду у врагов с Запада
@@ -676,6 +708,11 @@ def sendweather(bot, update): # отправляет погоду
         USERS[usr_id]['waiting_for_city'] = False
     if USERS[usr_id]['waiting_for_random']:
         USERS[usr_id]['waiting_for_random'] = False
+    if USERS[usr_id]['last_usage'] > CRITICAL_LAST_USAGE_TIME:
+        try:
+            greeting_to_unseen_user(bot.message)
+        except Exception:
+            greeting_to_unseen_user(CONTROL_MSGS[usr_id])
     if USERS[usr_id]['city'] == '':
         USERS[usr_id]['waiting_for_city'] = True
         CONTROL_MSGS[get_id(bot)].reply_text('Напиши название города')
@@ -692,6 +729,7 @@ def sendweather(bot, update): # отправляет погоду
         rep = 'А этот город вообще существует, дурачье?'
         USERS[usr_id]['city'] = ''
     CONTROL_MSGS[get_id(bot)].reply_text(rep, reply_markup=reply_markup)    
+    USERS[usr_id]['last_usage'] = time.time()
     write_users()
 
 def sendweather_handler(bot, update): # вызывается при вопросе про погоду, имба функция
