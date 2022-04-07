@@ -381,7 +381,10 @@ def reply(bot, update): # ответ на обычное сообщение
                 break
         # Сюда лучше не лезть без должной подготовки
         if 'или' in bot.message.text.lower() and bot.message.text.lower().split('или ')[0] != ' ' and bot.message.text.lower().split('или ')[0] != '':
-            rep = OR_ANSWERS[random.randint(0, len(OR_ANSWERS) - 1)] + ' ' + bot.message.text.split('или ')[random.randint(0, 1)].lower()
+            ch = bot.message.text.split('или ')[random.randint(0, 1)].lower()
+            if ch[-1] == '?' or ch[-1] == '.':
+                ch = ch[:-1]
+            rep = OR_ANSWERS[random.randint(0, len(OR_ANSWERS) - 1)] + ' ' + ch
         elif is_why:
             if USERS[usr_id]['mood'] < 0:
                 rep = NEGATIVE_WHY_ANSWERS[random.randint(0, len(NEGATIVE_WHY_ANSWERS) - 1)]
