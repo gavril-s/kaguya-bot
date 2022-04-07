@@ -359,6 +359,12 @@ def reply(bot, update): # ответ на обычное сообщение
     log(bot.message)
     if bot.message.text == QUIT_TEXT and usr_id in ADMINS_ID:
         quit()
+<<<<<<< HEAD
+=======
+    if 'или' in bot.message.text and bot.message.text.split('или ')[0] != ' ' and bot.message.text.split('или ')[0] != '':
+        time.sleep(SLEEP_TIME)
+        bot.message.reply_text(OR_ANSWERS[random.randint(0, len(OR_ANSWERS) - 1)] + ' ' + bot.message.text.split('или ')[random.randint(0, 1)].lower())
+>>>>>>> e2e5edff8ba0b63373c497e6f57c1ac50a481c4e
     elif random.random() <= 0.01: # имба, редкость
         bot.message.reply_text('Когда ты мне пишешь...')
         time.sleep(SLEEP_TIME)
