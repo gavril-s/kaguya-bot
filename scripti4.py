@@ -359,9 +359,6 @@ def reply(bot, update): # ответ на обычное сообщение
     log(bot.message)
     if bot.message.text == QUIT_TEXT and usr_id in ADMINS_ID:
         quit()
-    if 'или' in bot.message.text and bot.message.text.split('или ')[0] != ' ' and bot.message.text.split('или ')[0] != '':
-        time.sleep(SLEEP_TIME)
-        bot.message.reply_text(OR_ANSWERS[random.randint(0, len(OR_ANSWERS) - 1)] + bot.message.text.split('или ')[random.randint(0, 1)].lower())
     elif random.random() <= 0.01: # имба, редкость
         bot.message.reply_text('Когда ты мне пишешь...')
         time.sleep(SLEEP_TIME)
@@ -383,7 +380,9 @@ def reply(bot, update): # ответ на обычное сообщение
                 is_why = True
                 break
         # Сюда лучше не лезть без должной подготовки
-        if is_why:
+        if 'или' in bot.message.text.lower() and bot.message.text.lower().split('или ')[0] != ' ' and bot.message.text.lower().split('или ')[0] != '':
+            rep = OR_ANSWERS[random.randint(0, len(OR_ANSWERS) - 1)] + ' ' + bot.message.text.split('или ')[random.randint(0, 1)].lower()
+        elif is_why:
             if USERS[usr_id]['mood'] < 0:
                 rep = NEGATIVE_WHY_ANSWERS[random.randint(0, len(NEGATIVE_WHY_ANSWERS) - 1)]
             else:
@@ -437,7 +436,7 @@ def reply(bot, update): # ответ на обычное сообщение
     msg = clear_msg(bot.message.text)
     mrp_m = USERS[usr_id]['max_rating_pos_msgs']
     mrn_m = USERS[usr_id]['max_rating_neg_msgs']
-    if msg not in USERS[usr_id]['top_messages'] and msg != 'Кагуя':
+    if msg not in USERS[usr_id]['top_messages'] and 'кагуя' not in msg.lower():
         while len(USERS[usr_id]['top_messages']) >= TOP_MESSAGES_SIZE:
             min_r = float('inf')
             del_m = ''
@@ -471,7 +470,7 @@ def reply(bot, update): # ответ на обычное сообщение
                 mrn_m[i], mrn_m[i - 1] = mrn_m[i - 1], mrn_m[i]
                 i -= 1
             USERS[usr_id]['max_rating_neg_msgs'] = mrn_m
-    else:
+    elif 'кагуя' not in msg.lower():
         USERS[usr_id]['top_messages'][msg]['rating'] += 1
         if USERS[usr_id]['top_messages'][msg]['emo_rate'] >= 0 and (len(mrp_m) < MAX_RATING_POS_MSGS_SIZE or USERS[usr_id]['top_messages'][msg]['rating'] > USERS[usr_id]['top_messages'][mrp_m[-1]]['rating']):
             if len(mrp_m) >= MAX_RATING_POS_MSGS_SIZE:
