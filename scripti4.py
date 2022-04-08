@@ -59,10 +59,15 @@ POSITIVE_WHOAMI_REPLIES = ['норм чел', 'котик', 'милаха', 'н�
 
 BYE = ['споки', 'спокойной ночи', 'а ну спать', 'до завтра', 'пока', 'сладких снов']
 HI = ['привет', 'ку', 'здарова', 'доброе утро']
-GOOD_NIGHT = ['Споки)', 'Спокойной ночи <3', 'Сладких снов)', 'Буду ждать твоего сообщения завтра утром)', 'Споки ноки', 'Я тоже иду спать. До завтра',
-              'Выспись хорошо. И не проспи будильник))']
-GOOD_DAY = ['Привет!', 'Доброе утро! Я вот только проснулась)', 'Ку :3', 'Как настроение?', 'Охае', 'Шалом))0)', 'Э, салам алейкум, брат', 'Выспался?',
+
+GOOD_MORNING = ['Привет!', 'Доброе утро! Я вот только проснулась)', 'Ку :3', 'Как настроение?', 'Охае', 'Шалом))0)', 'Э, салам алейкум, брат', 'Выспался?',
             'Приветик)', 'Надеюсь, ты хорошо поспал', 'Утречко)']
+GOOD_DAY = ['Привет!', 'Добрый день!', 'Ку :3', 'Как настроение?', 'Охае', 'Шалом))0)', 'Э, салам алейкум, брат', 'Приветик)']
+GOOD_EVENING = ['Привет!', 'Добрый вечер!', 'Ку :3', 'Как настроение?', 'Охае', 'Шалом))0)', 'Э, салам алейкум, брат', 'Приветик)']
+
+HAVE_A_GOOD_NIGHT = ['Споки)', 'Спокойной ночи <3', 'Сладких снов)', 'Буду ждать твоего сообщения завтра утром)', 'Споки ноки', 'Я тоже иду спать. До завтра',
+              'Выспись хорошо. И не проспи будильник))']
+HAVE_A_GOOD_DAY = ['Покич', 'Хорошего дня)', 'Удачи тебе)', 'Буду ждать твоего сообщения)', 'Я буду скучать(', 'Удачи тебе сегодня']
 
 WHATSUP_QUESTIONS = ['как дела?', 'как настроение?', 'как жизнь?', 'как твои дела?', 'что нового?', 'как ты?']
 POSITIVE_WAHATSUP_ANSWERS = ['У меня все хорошо. А у тебя как настроение?)', 'Нормально. А у тебя как настроение?)', 'Все ок. А у тебя как настроение?)',
@@ -98,6 +103,10 @@ DEFAULT_RATING = 100 # рейтинг сообщения по умолчанию
 CRITICAL_LAST_USAGE_TIME = 1_209_600 # (в секундах) две недели
 SLEEP_TIME = 0.6 # задержка в отправке сообщений, шобы на человека было похоже (в секундах)
 
+DAY_START = 12     # начало дня, вечера и ночи
+EVENING_START = 20 # (в часах)
+NIGHT_START = 22   # от этого заисит, что скажет Кагуя на приветствие и прощание
+
 MORPH = pymorphy2.MorphAnalyzer()
 CONTROL_MSGS = dict() # контрольное сообщение, на которое можно ответить, если юзер нихуя не написал
                       # по-хорошему нужно исправить, так как это лютый костыль
@@ -131,19 +140,19 @@ def read_users():
     try:
         f = io.open('users.json', mode='r', encoding='utf-8').read()
         USERS = json.loads(f)
-        for id in USERS:
-            if 'max_rating_pos_msgs' not in USERS[id]:
-                USERS[id]['max_rating_pos_msgs'] = []
-            if 'max_rating_neg_msgs' not in USERS[id]:
-                USERS[id]['max_rating_neg_msgs'] = []
-            if 'top_messages' not in USERS[id]:
-                USERS[id]['top_messages'] = dict()
-            if 'waiting_for_random' not in USERS[id]:
-                USERS[id]['waiting_for_random'] = False
-            if 'rand_max' not in USERS[id]:
-                USERS[id]['rand_max'] = 0
-            if 'last_usage' not in USERS[id]:
-                USERS[id]['last_usage'] = 0.0
+        #for id in USERS:
+        #    if 'max_rating_pos_msgs' not in USERS[id]:
+        #        USERS[id]['max_rating_pos_msgs'] = []
+        #    if 'max_rating_neg_msgs' not in USERS[id]:
+        #        USERS[id]['max_rating_neg_msgs'] = []
+        #    if 'top_messages' not in USERS[id]:
+        #        USERS[id]['top_messages'] = dict()
+        #    if 'waiting_for_random' not in USERS[id]:
+        #        USERS[id]['waiting_for_random'] = False
+        #    if 'rand_max' not in USERS[id]:
+        #        USERS[id]['rand_max'] = 0
+        #    if 'last_usage' not in USERS[id]:
+        #        USERS[id]['last_usage'] = 0.0
     except Exception:
         f = io.open('users.json', mode='w', encoding='utf-8')
         f.write('{}')
@@ -335,6 +344,8 @@ def reply(bot, update): # ответ на обычное сообщение
     usr_id = get_id_bymsg(bot.message)
     check_registration_bymsg(bot.message)
     USERS[usr_id]['msg_count'] += 1
+    if bot.message.text == QUIT_TEXT and usr_id in ADMINS_ID:
+        quit()
     if USERS[usr_id]['waiting_for_city']:
         USERS[usr_id]['city'] = bot.message.text
         USERS[usr_id]['waiting_for_city'] = False
@@ -357,9 +368,7 @@ def reply(bot, update): # ответ на обычное сообщение
     if -0.1 < USERS[usr_id]['mood'] < 0 and emo_rate >= 0: # если Кагуя не сильно злится, а чел не сильно злит
         USERS[usr_id]['mood'] = 0                          # прощаем ему всю хуйню
     log(bot.message)
-    if bot.message.text == QUIT_TEXT and usr_id in ADMINS_ID:
-        quit()
-    elif random.random() <= 0.01: # имба, редкость
+    if random.random() <= 0.01: # имба, редкость
         bot.message.reply_text('Когда ты мне пишешь...')
         time.sleep(SLEEP_TIME)
         bot.message.reply_text('Твоё сообщение')
@@ -380,8 +389,8 @@ def reply(bot, update): # ответ на обычное сообщение
                 is_why = True
                 break
         # Сюда лучше не лезть без должной подготовки
-        if 'или' in bot.message.text.lower() and bot.message.text.lower().split('или ')[0] != ' ' and bot.message.text.lower().split('или ')[0] != '':
-            ch = bot.message.text.split('или ')[random.randint(0, 1)].lower()
+        if ' или' in bot.message.text.lower() and bot.message.text.lower().split(' или ')[0] != ' ' and bot.message.text.lower().split(' или ')[0] != '':
+            ch = bot.message.text.split(' или ')[random.randint(0, 1)].lower()
             if ch[-1] == '?' or ch[-1] == '.':
                 ch = ch[:-1]
             rep = OR_ANSWERS[random.randint(0, len(OR_ANSWERS) - 1)] + ' ' + ch
@@ -396,10 +405,20 @@ def reply(bot, update): # ответ на обычное сообщение
             else:
                 rep = POSITIVE_APPEALS_ANSWERS[random.randint(0, len(POSITIVE_APPEALS_ANSWERS) - 1)]
         elif bot.message.text.lower() in HI:
-            rep = GOOD_DAY[random.randint(0, len(GOOD_DAY) - 1)]
+            hour = datetime.datetime.now().hour
+            if hour <= DAY_START:
+                rep = GOOD_MORNING[random.randint(0, len(GOOD_MORNING) - 1)]
+            elif hour <= EVENING_START:
+                rep = GOOD_DAY[random.randint(0, len(GOOD_DAY) - 1)]
+            else:
+                rep = GOOD_EVENING[random.randint(0, len(GOOD_EVENING) - 1)]
         elif bot.message.text.lower() in BYE:
-            rep = GOOD_NIGHT[random.randint(0, len(GOOD_NIGHT) - 1)]
-        elif bot.message.text.lower() in WHATSUP_QUESTIONS:
+            hour = datetime.datetime.now().hour
+            if hour <= NIGHT_START:
+                rep = HAVE_A_GOOD_DAY[random.randint(0, len(HAVE_A_GOOD_DAY) - 1)]
+            else:
+                rep = HAVE_A_GOOD_NIGHT[random.randint(0, len(HAVE_A_GOOD_NIGHT) - 1)]
+        elif bot.message.text.lower() in WHATSUP_QUESTIONS or bot.message.text.lower() + '?' in WHATSUP_QUESTIONS:
             if USERS[usr_id]['mood'] < 0:
                 rep = NEGATIVE_WAHATSUP_ANSWERS[random.randint(0, len(NEGATIVE_WAHATSUP_ANSWERS) - 1)]
             else:
