@@ -380,8 +380,8 @@ def reply(bot, update): # ответ на обычное сообщение
                 is_why = True
                 break
         # Сюда лучше не лезть без должной подготовки
-        if 'или' in bot.message.text.lower() and bot.message.text.lower().split('или ')[0] != ' ' and bot.message.text.lower().split('или ')[0] != '':
-            ch = bot.message.text.split('или ')[random.randint(0, 1)].lower()
+        if 'или' in bot.message.text.lower() and bot.message.text.lower().split(' или ')[0] != ' ' and bot.message.text.lower().split(' или ')[0] != '':
+            ch = bot.message.text.split(' или ')[random.randint(0, 1)].lower()
             if ch[-1] == '?' or ch[-1] == '.':
                 ch = ch[:-1]
             rep = OR_ANSWERS[random.randint(0, len(OR_ANSWERS) - 1)] + ' ' + ch
