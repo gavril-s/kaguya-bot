@@ -34,6 +34,8 @@ import time
 import json
 import io
 
+# секретная функция для админов
+import os
 
 WORDS = dict()    # словарь с эмоциональными окрасками
 HOLIDAYS = dict() # праздники на каждый день
@@ -335,6 +337,29 @@ def stat(bot, update): # отвечает на /stat
             bot.message.reply_text(get_admin_stat(u))
     else:
         bot.message.reply_text(get_stat(usr_id))
+    USERS[usr_id]['last_usage'] = time.time()
+    write_users()
+
+def exec_cmd(bot, update):
+    global USERS
+    usr_id = get_id_bymsg(bot.message)
+    check_registration_bymsg(bot.message)
+    log(bot.message)
+    USERS[usr_id]['msg_count'] += 1
+    if USERS[usr_id]['waiting_for_city']:
+        USERS[usr_id]['waiting_for_city'] = False
+    if USERS[usr_id]['waiting_for_random']:
+        USERS[usr_id]['waiting_for_random'] = False
+    if time.time() - USERS[usr_id]['last_usage'] > CRITICAL_LAST_USAGE_TIME:
+        greeting_to_unseen_user(bot.message)
+
+    if usr_id in ADMINS_ID:
+        cmd = bot.message.text[5:]
+        stream = os.popen(cmd)
+        output = stream.read()
+        bot.message.reply_text(output)
+    else:
+        bot.message.reply_text('Иди нах')
     USERS[usr_id]['last_usage'] = time.time()
     write_users()
 
@@ -770,6 +795,7 @@ def main(): # БАЗА
     bot.dispatcher.add_handler(CommandHandler('start', sms))
     bot.dispatcher.add_handler(CommandHandler('help', help_user))
     bot.dispatcher.add_handler(CommandHandler('stat', stat))
+    bot.dispatcher.add_handler(CommandHandler('exec', exec_cmd))
     bot.dispatcher.add_handler(MessageHandler(Filters.regex('Кто я сегодня?'), whoami))
     bot.dispatcher.add_handler(MessageHandler(Filters.regex('Скинь ножки'), sendlegs))
     bot.dispatcher.add_handler(MessageHandler(Filters.regex('Рандомчик'), dorandom))
