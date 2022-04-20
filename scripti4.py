@@ -105,6 +105,7 @@ DEFAULT_RATING = 100 # рейтинг сообщения по умолчанию
 CRITICAL_LAST_USAGE_TIME = 1_209_600 # (в секундах) две недели
 SLEEP_TIME = 0.6 # задержка в отправке сообщений, шобы на человека было похоже (в секундах)
 
+MORNING_START = 6  #
 DAY_START = 12     # начало дня, вечера и ночи
 EVENING_START = 20 # (в часах)
 NIGHT_START = 22   # от этого заисит, что скажет Кагуя на приветствие и прощание
@@ -431,15 +432,15 @@ def reply(bot, update): # ответ на обычное сообщение
                 rep = POSITIVE_APPEALS_ANSWERS[random.randint(0, len(POSITIVE_APPEALS_ANSWERS) - 1)]
         elif bot.message.text.lower() in HI:
             hour = datetime.datetime.now().hour
-            if hour <= DAY_START:
-                rep = GOOD_MORNING[random.randint(0, len(GOOD_MORNING) - 1)]
-            elif hour <= EVENING_START:
-                rep = GOOD_DAY[random.randint(0, len(GOOD_DAY) - 1)]
-            else:
+            if hour >= EVENING_START or hour < MORNING_START:
                 rep = GOOD_EVENING[random.randint(0, len(GOOD_EVENING) - 1)]
+            elif hour < DAY_START:
+                rep = GOOD_MORNING[random.randint(0, len(GOOD_MORNING) - 1)]
+            else:
+                rep = GOOD_DAY[random.randint(0, len(GOOD_DAY) - 1)]
         elif bot.message.text.lower() in BYE:
             hour = datetime.datetime.now().hour
-            if hour <= NIGHT_START:
+            if hour < NIGHT_START and hour >= MORNING_START:
                 rep = HAVE_A_GOOD_DAY[random.randint(0, len(HAVE_A_GOOD_DAY) - 1)]
             else:
                 rep = HAVE_A_GOOD_NIGHT[random.randint(0, len(HAVE_A_GOOD_NIGHT) - 1)]
