@@ -420,7 +420,7 @@ def reply(bot, update): # ответ на обычное сообщение
             cmd = 'ps | grep python3 | grep Blin.py'
             stream = os.popen(cmd)
             output = stream.read()
-            if len(output):
+            if len(output) > 0:
                 rep = 'Норм'
             else:
                 bot.message.reply_text('Лёг нахуй, делаем ребут')
