@@ -415,7 +415,17 @@ def reply(bot, update): # ответ на обычное сообщение
                 is_why = True
                 break
         # Сюда лучше не лезть без должной подготовки
-        if ' или' in bot.message.text.lower() and bot.message.text.lower().split(' или ')[0] != ' ' and bot.message.text.lower().split(' или ')[0] != '':
+        print(clear_msg(bot.message.text))
+        if clear_msg(bot.message.text) == 'Как там блин блинский' or clear_msg(bot.message.text) == 'Как там блин блинский?':
+            cmd = 'ps | grep python3 | grep Blin.py'
+            stream = os.popen(cmd)
+            output = stream.read()
+            if len(output):
+                rep = 'Норм'
+            else:
+                bot.message.reply_text('Лёг нахуй, делаем ребут')
+                os.popen('reboot -f')
+        elif ' или' in bot.message.text.lower() and bot.message.text.lower().split(' или ')[0] != ' ' and bot.message.text.lower().split(' или ')[0] != '':
             ch = bot.message.text.split(' или ')[random.randint(0, 1)].lower()
             if ch[-1] == '?' or ch[-1] == '.':
                 ch = ch[:-1]
@@ -453,7 +463,7 @@ def reply(bot, update): # ответ на обычное сообщение
             if '?' in bot.message.text:
                 rep = NEGATIVE_QUIESTION_ANSWERS[random.randint(0, len(NEGATIVE_QUIESTION_ANSWERS) - 1)]
             else:
-                if random.random() <= REPLY_WITH_USR_MSG and len(USERS[usr_id]['top_messages']) > 0:
+                if random.random() <= REPLY_WITH_USR_MSG and len(USERS[usr_id]['top_messages']) > 0 and len(USERS[usr_id]['max_rating_neg_msgs']) > 0:
                     attempts = 0
                     rep = USERS[usr_id]['max_rating_neg_msgs'][random.randint(0, len(USERS[usr_id]['max_rating_neg_msgs']) - 1)]
                     while attempts <= 5 and time.time() - USERS[usr_id]['top_messages'][rep]['time'] <= 30:
@@ -467,7 +477,7 @@ def reply(bot, update): # ответ на обычное сообщение
             if '?' in bot.message.text:
                 rep = POSITIVE_QUESTION_ANSWERS[random.randint(0, len(POSITIVE_QUESTION_ANSWERS) - 1)]
             else:
-                if random.random() <= REPLY_WITH_USR_MSG and len(USERS[usr_id]['top_messages']) > 0:
+                if random.random() <= REPLY_WITH_USR_MSG and len(USERS[usr_id]['top_messages']) > 0 and len(USERS[usr_id]['max_rating_pos_msgs']) > 0:
                     attempts = 0
                     rep = USERS[usr_id]['max_rating_pos_msgs'][random.randint(0, len(USERS[usr_id]['max_rating_pos_msgs']) - 1)]
                     while attempts <= 5 and time.time() - USERS[usr_id]['top_messages'][rep]['time'] <= 30:
