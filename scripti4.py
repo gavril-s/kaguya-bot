@@ -416,7 +416,9 @@ def reply(bot, update): # ответ на обычное сообщение
                 break
         # Сюда лучше не лезть без должной подготовки
         print(clear_msg(bot.message.text))
-        if clear_msg(bot.message.text) == 'Как там блин блинский' or clear_msg(bot.message.text) == 'Как там блин блинский?':
+        if clear_msg(bot.message.text)[:5] == 'Скажи':
+            rep = bot.message.text[6:]
+        elif clear_msg(bot.message.text) == 'Как там блин блинский' or clear_msg(bot.message.text) == 'Как там блин блинский?':
             cmd = 'ps | grep python3 | grep Blin.py'
             stream = os.popen(cmd)
             output = stream.read()
