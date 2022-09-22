@@ -15,8 +15,7 @@ import telegram, telegram.ext
 
 # для погоды
 from pyowm import OWM
-#from pyowm.utils import config as cfg
-import config as cfg
+from pyowm.utils import config as cfg
 
 # для привода слов к стандартной форме
 import pymorphy2
@@ -791,7 +790,8 @@ def sendweather(bot, update): # отправляет погоду
     try:
         w = weather(USERS[usr_id]['city'])
         rep = 'В городе ' + USERS[usr_id]['city'] + ' сейчас ' + str(round(w[0]["temp"])) + '°C, ' + w[1]
-    except Exception:
+    except Exception as e:
+        print(e)
         rep = 'А этот город вообще существует, дурачье?'
         USERS[usr_id]['city'] = ''
     CONTROL_MSGS[get_id(bot)].reply_text(rep, reply_markup=reply_markup)    
