@@ -116,11 +116,12 @@ CONTROL_MSGS = dict() # контрольное сообщение, на кото
                       # по-хорошему нужно исправить, так как это лютый костыль
 
 def log(msg):
-    print('-------------------------')
-    print('MESSAGE: ', msg.text)
-    print('USER: ', msg.from_user['first_name'])
-    print('MOOD: ', USERS[get_id_bymsg(msg)]['mood'])
-    print('-------------------------')
+    #print('-------------------------')
+    #print('MESSAGE: ', msg.text)
+    #print('USER: ', msg.from_user['first_name'])
+    #print('MOOD: ', USERS[get_id_bymsg(msg)]['mood'])
+    #print('-------------------------')
+    return
 
 def read_words():
     f = io.open('words.txt', mode='r', encoding='utf-8')
