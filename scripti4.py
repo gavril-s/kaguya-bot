@@ -197,13 +197,13 @@ def check_registration(bot):
     usr_id = get_id(bot)
     if usr_id not in USERS:
         register_user(msg) # тут хуйня написана, но трогать лень
-        print('NEW USER: ', USERS[usr_id])
+        #print('NEW USER: ', USERS[usr_id])
 
 def check_registration_bymsg(msg):
     usr_id = get_id_bymsg(msg)
     if usr_id not in USERS:
         register_user(msg)
-        print('NEW USER: ', USERS[usr_id])
+        #print('NEW USER: ', USERS[usr_id])
 
 def get_id(bot):
     return str(bot.effective_user['id'])
@@ -417,7 +417,7 @@ def reply(bot, update): # ответ на обычное сообщение
                 is_why = True
                 break
         # Сюда лучше не лезть без должной подготовки
-        print(clear_msg(bot.message.text))
+        #print(clear_msg(bot.message.text))
         if clear_msg(bot.message.text)[:5] == 'Скажи':
             rep = bot.message.text[6:]
         elif clear_msg(bot.message.text) == 'Как там блин блинский' or clear_msg(bot.message.text) == 'Как там блин блинский?':
