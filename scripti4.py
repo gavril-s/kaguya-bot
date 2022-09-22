@@ -15,7 +15,8 @@ import telegram, telegram.ext
 
 # для погоды
 from pyowm import OWM
-from pyowm.utils import config as cfg
+#from pyowm.utils import config as cfg
+import config as cfg
 
 # для привода слов к стандартной форме
 import pymorphy2
@@ -102,7 +103,7 @@ TOP_MESSAGES_SIZE = 500 # количество сообщений в топе
 MAX_RATING_POS_MSGS_SIZE = 20
 MAX_RATING_NEG_MSGS_SIZE = 20
 DEFAULT_RATING = 100 # рейтинг сообщения по умолчанию
-CRITICAL_LAST_USAGE_TIME = 1_209_600 # (в секундах) две недели
+CRITICAL_LAST_USAGE_TIME = 1209600 # (в секундах) две недели
 SLEEP_TIME = 0.6 # задержка в отправке сообщений, шобы на человека было похоже (в секундах)
 
 MORNING_START = 6  #
@@ -262,7 +263,7 @@ def get_stat(usr_id): # выдаёт пользователю стату
     res = ''
     res += 'Отправлено сообщений: ' + str(USERS[usr_id]['msg_count']) + '\n'
     res += 'Картинок открыто: ' + str(USERS[usr_id]['pics_unlocked']) + '/' + str(len(glob('LEGS/*'))) + '\n'
-    res += 'Настроение твоей Кагуи: ' + f"{USERS[usr_id]['mood']:.2f}" + '\n'
+    res += 'Настроение твоей Кагуи: ' + str(USERS[usr_id]['mood']) + '\n'
     return res
 
 def get_admin_stat(usr_id): # выдаёт админам личные данные пользователей
@@ -272,7 +273,7 @@ def get_admin_stat(usr_id): # выдаёт админам личные данн�
     res += '\n-----------------------------------------\n'
     res += 'Отправлено сообщений: ' + str(USERS[usr_id]['msg_count']) + '\n'
     res += 'Картинок открыто: ' + str(USERS[usr_id]['pics_unlocked']) + '/' + str(len(glob('LEGS/*'))) + '\n'
-    res += 'Настроение: ' + f"{USERS[usr_id]['mood']:.2f}" + '\n'
+    res += 'Настроение: ' + str(USERS[usr_id]['mood']) + '\n'
     return res
 
 
