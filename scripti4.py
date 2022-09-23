@@ -303,7 +303,7 @@ def sms(bot, update): # отвечает на /start
         USERS[usr_id]['waiting_for_city'] = False
     if USERS[usr_id]['waiting_for_random']:
         USERS[usr_id]['waiting_for_random'] = False
-    keyboard = ReplyKeyboardMarkup([['Скинь ножки', 'Какой сегодня день?'], ['Кто я сегодня?', 'Когда новый сезон?'], ['Какая погода сейчас?', 'Рандомчик']], resize_keyboard=True)
+    keyboard = ReplyKeyboardMarkup([['Скинь ножки', 'Какой сегодня день?'], ['Кто я сегодня?', 'Сколько до перекура?'], ['Какая погода сейчас?', 'Рандомчик']], resize_keyboard=True)
     bot.message.reply_text('Охае, {}!'.format(bot.message.chat.first_name))
     time.sleep(SLEEP_TIME)
     bot.message.reply_text("Меня зовут Кагуя Синомия. Давай поболтаем (чтобы увидеть всё, что я могу, напиши /help)", reply_markup=keyboard)
@@ -807,21 +807,21 @@ def whensmoketime(bot, update): #когда там перекур
 
     if is_smoke == 0:
         bot.message.reply_text('Так, сейчас у тебя {} пара'.format(pairnum))
-        time.sleep(1)
+        time.sleep(SLEEP_TIME)
         if timetosmoke > 59:
             timetosmoke -= 60
             bot.message.reply_text('До перекура 1 час {} минут'.format(timetosmoke))
         else:
             bot.message.reply_text('До перекура {} минут'.format(timetosmoke))
-        time.sleep(1)
+        time.sleep(SLEEP_TIME)
         bot.message.reply_text('Учись усерднее, {}'.format(bot.message.chat.first_name))
-        time.sleep(1)
+        time.sleep(SLEEP_TIME)
         update.bot.send_photo(chat_id=bot.message.chat.id, photo=open('NEWSEASON/learntime.jpg', 'rb'))
     elif is_smoke == 2:
         bot.message.reply_text('Ура, бегом на перекур!!!')
-        time.sleep(1)
+        time.sleep(SLEEP_TIME)
         bot.message.reply_text('Только на следующую пару не опаздай)')
-        time.sleep(1)
+        time.sleep(SLEEP_TIME)
         update.bot.send_photo(chat_id=bot.message.chat.id, photo=open('NEWSEASON/smoketime.jpg', 'rb'))
 
 def weather(city: str): # получает погоду у врагов с Запада
@@ -900,7 +900,7 @@ def main(): # БАЗА
     bot.dispatcher.add_handler(MessageHandler(Filters.regex('Скинь ножки'), sendlegs))
     bot.dispatcher.add_handler(MessageHandler(Filters.regex('Рандомчик'), dorandom))
     bot.dispatcher.add_handler(MessageHandler(Filters.regex('Какой сегодня день?'), sendday))
-    bot.dispatcher.add_handler(MessageHandler(Filters.regex('Сколько до перекура'), whensmoketime()))
+    bot.dispatcher.add_handler(MessageHandler(Filters.regex('Сколько до перекура?'), whensmoketime))
     bot.dispatcher.add_handler(MessageHandler(Filters.regex('Когда новый сезон?'), when3season))
     bot.dispatcher.add_handler(MessageHandler(Filters.regex('Какая погода сейчас?'), sendweather_handler))
     bot.dispatcher.add_handler(MessageHandler(Filters.regex('Погода в другом городе'), change_weather_city))
