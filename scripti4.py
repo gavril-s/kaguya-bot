@@ -900,7 +900,7 @@ def main(): # БАЗА
     bot.dispatcher.add_handler(MessageHandler(Filters.regex('Скинь ножки'), sendlegs))
     bot.dispatcher.add_handler(MessageHandler(Filters.regex('Рандомчик'), dorandom))
     bot.dispatcher.add_handler(MessageHandler(Filters.regex('Какой сегодня день?'), sendday))
-    bot.dispatcher.add_handler(MessageHandler(Filters.regex('Сколько до перекура'), whensmoketime()))
+    bot.dispatcher.add_handler(MessageHandler(Filters.regex('Сколько до перекура'), whensmoketime))
     bot.dispatcher.add_handler(MessageHandler(Filters.regex('Когда новый сезон?'), when3season))
     bot.dispatcher.add_handler(MessageHandler(Filters.regex('Какая погода сейчас?'), sendweather_handler))
     bot.dispatcher.add_handler(MessageHandler(Filters.regex('Погода в другом городе'), change_weather_city))
