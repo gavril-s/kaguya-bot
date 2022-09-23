@@ -88,6 +88,14 @@ MONTHS = ['января', 'февраля', 'марта', 'апреля', 'ма�
 
 OR_ANSWERS = ['Ну разумеется', 'Конечно же', 'Я думаю', 'Мне кажется', 'Я выбираю', 'Мне больше нравится']
 
+PAIRS_TIME = {
+    1 : {'start': datetime.time(9,  0),  'end' : datetime.time(10, 30)},
+    2 : {'start': datetime.time(10, 40), 'end' : datetime.time(12, 10)},
+    3 : {'start': datetime.time(12, 40), 'end' : datetime.time(14, 10)},
+    4 : {'start': datetime.time(14, 20), 'end' : datetime.time(15, 50)},
+    5 : {'start': datetime.time(16, 20), 'end' : datetime.time(17, 50)},
+    6 : {'start': datetime.time(18, 0),  'end' : datetime.time(19, 30)}
+}
 
 #############################
 # ЧАСТЬ СО СЛУЖЕБНЫМ ГОВНОМ
@@ -653,59 +661,6 @@ def sendlegs(bot, update): # отвечает на "Скинь ножки"
     USERS[usr_id]['last_usage'] = time.time()
     write_users()
 
-def when3season(bot, update): # отвечает на "Когда третий сезон?"
-    global USERS
-    usr_id = get_id_bymsg(bot.message)
-    check_registration_bymsg(bot.message)
-    log(bot.message)
-    USERS[usr_id]['msg_count'] += 1
-    if USERS[usr_id]['waiting_for_city']:
-        USERS[usr_id]['waiting_for_city'] = False
-    if USERS[usr_id]['waiting_for_random']:
-        USERS[usr_id]['waiting_for_random'] = False
-    if time.time() - USERS[usr_id]['last_usage'] > CRITICAL_LAST_USAGE_TIME:
-        greeting_to_unseen_user(bot.message)
-    now = date.today()
-    ser_1 = date(2022, 4, 9)
-    ser_2 = date(2022, 4, 16)
-    ser_3 = date(2022, 4, 23)
-    ser_4 = date(2022, 4, 30)
-    ser_5 = date(2022, 5, 7)
-    ser_6 = date(2022, 5, 14)
-    ser_7 = date(2022, 5, 21)
-    ser = 0
-    if ser_1 > now:
-        bot.message.reply_text('Блин, нового сезона еще нет(')
-        time.sleep(SLEEP_TIME)
-        update.bot.send_photo(chat_id=bot.message.chat.id, photo=open('NEWSEASON/notyet.png', 'rb'))
-        time.sleep(SLEEP_TIME)
-        bot.message.reply_text('Но как только он выйдет, я обязательно тебе сообщу)')
-    else:
-        if ser_7 <= now:
-            ser = 7
-        elif ser_6 <= now:
-            ser = 6
-        elif ser_5 <= now:
-            ser = 5
-        elif ser_4 <= now:
-            ser = 4
-        elif ser_3 <= now:
-            ser = 3
-        elif ser_2 <= now:
-            ser = 2
-        elif ser_1 <= now:
-            ser = 1
-
-        bot.message.reply_text('Ура, вышла серия {}!'.format(ser))
-        time.sleep(SLEEP_TIME)
-        update.bot.send_photo(chat_id=bot.message.chat.id, photo=open('NEWSEASON/out.png', 'rb'))
-        time.sleep(SLEEP_TIME)
-        bot.message.reply_text('А ну бегом смотреть')
-        time.sleep(SLEEP_TIME)
-        bot.message.reply_text('https://jut.su/kaguya-sama/')
-    USERS[usr_id]['last_usage'] = time.time()
-    write_users()
-
 def sendday(bot, update): # отвечает на "Какой сегодня день?"
     global USERS
     usr_id = get_id_bymsg(bot.message)
@@ -762,67 +717,61 @@ def whensmoketime(bot, update): #когда там перекур
         USERS[usr_id]['waiting_for_random'] = False
     if time.time() - USERS[usr_id]['last_usage'] > CRITICAL_LAST_USAGE_TIME:
         greeting_to_unseen_user(bot.message)
-    pic = ''
-    time.sleep(1)
-    bot.message.reply_text('Нууу ладно, сейчас посчитаю')
-    time.sleep(1)
-    pair1start = 9*60
-    pair1end = 10*60+30
-    pair2start = 10*60+40
-    pair2end = 12 * 60 + 10
-    pair3start = 12 * 60 + 40
-    pair3end = 14 * 60 + 10
-    pair4start = 14 * 60 + 20
-    pair4end = 15 * 60 + 50
-    pair5start = 16 * 60 + 20
-    pair5end = 17 * 60 + 50
-    pair6start = 18 * 60
-    pair6end = 19 * 60 + 30
-    pairnum = timetosmoke = 0
-    is_smoke = 0
-    rn = datetime.datetime.today().hour * 60 + datetime.datetime.today().minute
-    if rn < pair1start:
-        bot.message.reply_text('Ты дурачье, у тебя еще пары не начались :3')
-        is_smoke = 2
-    elif pair1end > rn:
-        pairnum = 1
-        timetosmoke = pair1end - rn
-    elif pair2end > rn and pair2start < rn:
-        pairnum = 2
-        timetosmoke = pair2end - rn
-    elif pair3end > rn and pair3start < rn:
-        pairnum = 3
-        timetosmoke = pair3end - rn
-    elif pair4end > rn and pair4start < rn:
-        pairnum = 4
-        timetosmoke = pair4end - rn
-    elif pair5end > rn and pair5start < rn:
-        pairnum = 5
-        timetosmoke = pair5end - rn
-    elif pair6end > rn and pair6start < rn:
-        pairnum = 6
-        timetosmoke = pair6end - rn
-    else:
-        is_smoke = 1
 
-    if is_smoke == 0:
-        bot.message.reply_text('Так, сейчас у тебя {} пара'.format(pairnum))
+    time.sleep(SLEEP_TIME)
+    bot.message.reply_text('Нууу ладно, сейчас посчитаю')
+
+    curr_time = datetime.datetime.now().time()
+    curr_state = 'не на парах' # возможные состояния: не на парах, на паре, перекур
+    time_to_smoke = 0
+    pair_num = 0
+     
+    for p_num in PAIRS_TIME:
+        p_start = PAIRS_TIME[p_num]['start']
+        p_end = PAIRS_TIME[p_num]['end']
+
+        if p_end >= curr_time >= p_start:
+            curr_state = 'на паре'
+            pair_num = p_num
+            time_to_smoke = datetime.datetime.combine(datetime.date.today(), p_end) - datetime.datetime.combine(datetime.date.today(), curr_time)
+            time_to_smoke = round((time_to_smoke.seconds + round(time_to_smoke.microseconds/10**6)) / 60)
+            # получается время в минутах
+        elif p_num + 1 < len(PAIRS_TIME):
+            next_p_start = PAIRS_TIME[p_num + 1]['start']
+            if next_p_start >= curr_time >= p_end:
+                curr_state = 'перекур'
+
+    if curr_state == 'на паре':
         time.sleep(SLEEP_TIME)
-        if timetosmoke > 59:
-            timetosmoke -= 60
-            bot.message.reply_text('До перекура 1 час {} минут'.format(timetosmoke))
+        bot.message.reply_text('Так, сейчас у тебя {} пара'.format(pair_num))
+        
+        if time_to_smoke >= 60:
+            time_to_smoke -= 60
+            bot.message.reply_text('До перекура 1 час {} минут'.format(time_to_smoke))
         else:
-            bot.message.reply_text('До перекура {} минут'.format(timetosmoke))
+            bot.message.reply_text('До перекура {} минут'.format(time_to_smoke))
+
         time.sleep(SLEEP_TIME)
         bot.message.reply_text('Учись усерднее, {}'.format(bot.message.chat.first_name))
+
+        update.bot.send_photo(chat_id=bot.message.chat.id, photo=open('SMOKETIME/learntime.jpg', 'rb'))
+    elif curr_state == 'перекур':
+
         time.sleep(SLEEP_TIME)
-        update.bot.send_photo(chat_id=bot.message.chat.id, photo=open('NEWSEASON/learntime.jpg', 'rb'))
-    elif is_smoke == 2:
         bot.message.reply_text('Ура, бегом на перекур!!!')
+        
         time.sleep(SLEEP_TIME)
         bot.message.reply_text('Только на следующую пару не опаздай)')
+        
+        update.bot.send_photo(chat_id=bot.message.chat.id, photo=open('SMOKETIME/smoketime.jpg', 'rb'))
+    else:
         time.sleep(SLEEP_TIME)
-        update.bot.send_photo(chat_id=bot.message.chat.id, photo=open('NEWSEASON/smoketime.jpg', 'rb'))
+        bot.message.reply_text('Чел, ты не на парах')
+
+        update.bot.send_photo(chat_id=bot.message.chat.id, photo=open('SMOKETIME/notyet.png', 'rb'))
+
+    USERS[usr_id]['last_usage'] = time.time()
+    write_users()    
 
 def weather(city: str): # получает погоду у врагов с Запада
     config_dict = cfg.get_default_config()
@@ -901,7 +850,6 @@ def main(): # БАЗА
     bot.dispatcher.add_handler(MessageHandler(Filters.regex('Рандомчик'), dorandom))
     bot.dispatcher.add_handler(MessageHandler(Filters.regex('Какой сегодня день?'), sendday))
     bot.dispatcher.add_handler(MessageHandler(Filters.regex('Сколько до перекура?'), whensmoketime))
-    bot.dispatcher.add_handler(MessageHandler(Filters.regex('Когда новый сезон?'), when3season))
     bot.dispatcher.add_handler(MessageHandler(Filters.regex('Какая погода сейчас?'), sendweather_handler))
     bot.dispatcher.add_handler(MessageHandler(Filters.regex('Погода в другом городе'), change_weather_city))
     bot.dispatcher.add_handler(CallbackQueryHandler(change_weather_city, pattern='^Погода в другом городе$'))
