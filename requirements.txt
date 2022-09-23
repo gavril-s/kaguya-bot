@@ -1,0 +1,17 @@
+certifi==2021.10.8
+chardet==3.0.4
+cryptography==3.2.1
+DAWG-Python==0.7.2
+decorator==5.1.1
+docopt==0.6.2
+ez-setup==0.9
+geojson==2.5.0
+idna==2.7
+pycparser==2.21
+pymorphy2==0.9.1
+pymorphy2-dicts-ru==2.4.417127.4579844
+python-telegram-bot==12.8
+requests==2.19.0
+six==1.16.0
+tornado==6.1
+urllib3==1.23
