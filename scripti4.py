@@ -749,6 +749,81 @@ def sendday(bot, update): # отвечает на "Какой сегодня д�
     USERS[usr_id]['last_usage'] = time.time()
     write_users()
 
+
+def whensmoketime(bot, update): #когда там перекур
+    global USERS
+    usr_id = get_id_bymsg(bot.message)
+    check_registration_bymsg(bot.message)
+    log(bot.message)
+    USERS[usr_id]['msg_count'] += 1
+    if USERS[usr_id]['waiting_for_city']:
+        USERS[usr_id]['waiting_for_city'] = False
+    if USERS[usr_id]['waiting_for_random']:
+        USERS[usr_id]['waiting_for_random'] = False
+    if time.time() - USERS[usr_id]['last_usage'] > CRITICAL_LAST_USAGE_TIME:
+        greeting_to_unseen_user(bot.message)
+    pic = ''
+    time.sleep(1)
+    bot.message.reply_text('Нууу ладно, сейчас посчитаю')
+    time.sleep(1)
+    pair1start = 9*60
+    pair1end = 10*60+30
+    pair2start = 10*60+40
+    pair2end = 12 * 60 + 10
+    pair3start = 12 * 60 + 40
+    pair3end = 14 * 60 + 10
+    pair4start = 14 * 60 + 20
+    pair4end = 15 * 60 + 50
+    pair5start = 16 * 60 + 20
+    pair5end = 17 * 60 + 50
+    pair6start = 18 * 60
+    pair6end = 19 * 60 + 30
+    pairnum = timetosmoke = 0
+    is_smoke = 0
+    rn = datetime.datetime.today().hour * 60 + datetime.datetime.today().minute
+    if rn < pair1start:
+        bot.message.reply_text('Ты дурачье, у тебя еще пары не начались :3')
+        is_smoke = 2
+    elif pair1end > rn:
+        pairnum = 1
+        timetosmoke = pair1end - rn
+    elif pair2end > rn and pair2start < rn:
+        pairnum = 2
+        timetosmoke = pair2end - rn
+    elif pair3end > rn and pair3start < rn:
+        pairnum = 3
+        timetosmoke = pair3end - rn
+    elif pair4end > rn and pair4start < rn:
+        pairnum = 4
+        timetosmoke = pair4end - rn
+    elif pair5end > rn and pair5start < rn:
+        pairnum = 5
+        timetosmoke = pair5end - rn
+    elif pair6end > rn and pair6start < rn:
+        pairnum = 6
+        timetosmoke = pair6end - rn
+    else:
+        is_smoke = 1
+
+    if is_smoke == 0:
+        bot.message.reply_text('Так, сейчас у тебя {} пара'.format(pairnum))
+        time.sleep(1)
+        if timetosmoke > 59:
+            timetosmoke -= 60
+            bot.message.reply_text('До перекура 1 час {} минут'.format(timetosmoke))
+        else:
+            bot.message.reply_text('До перекура {} минут'.format(timetosmoke))
+        time.sleep(1)
+        bot.message.reply_text('Учись усерднее, {}'.format(bot.message.chat.first_name))
+        time.sleep(1)
+        update.bot.send_photo(chat_id=bot.message.chat.id, photo=open('NEWSEASON/learntime.jpg', 'rb'))
+    elif is_smoke == 2:
+        bot.message.reply_text('Ура, бегом на перекур!!!')
+        time.sleep(1)
+        bot.message.reply_text('Только на следующую пару не опаздай)')
+        time.sleep(1)
+        update.bot.send_photo(chat_id=bot.message.chat.id, photo=open('NEWSEASON/smoketime.jpg', 'rb'))
+
 def weather(city: str): # получает погоду у врагов с Запада
     config_dict = cfg.get_default_config()
     config_dict['language'] = 'ru' 
@@ -825,6 +900,7 @@ def main(): # БАЗА
     bot.dispatcher.add_handler(MessageHandler(Filters.regex('Скинь ножки'), sendlegs))
     bot.dispatcher.add_handler(MessageHandler(Filters.regex('Рандомчик'), dorandom))
     bot.dispatcher.add_handler(MessageHandler(Filters.regex('Какой сегодня день?'), sendday))
+    bot.dispatcher.add_handler(MessageHandler(Filters.regex('Сколько до перекура'), whensmoketime()))
     bot.dispatcher.add_handler(MessageHandler(Filters.regex('Когда новый сезон?'), when3season))
     bot.dispatcher.add_handler(MessageHandler(Filters.regex('Какая погода сейчас?'), sendweather_handler))
     bot.dispatcher.add_handler(MessageHandler(Filters.regex('Погода в другом городе'), change_weather_city))
