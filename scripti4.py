@@ -202,6 +202,16 @@ def check_registration_bymsg(msg):
     if usr_id not in USERS:
         register_user(msg)
         print('NEW USER: ', USERS[usr_id])
+    else:
+        first_name = msg.from_user['first_name']
+        last_name = msg.from_user['last_name']
+        username = msg.from_user['username']
+        if USERS[usr_id]['first_name'] != first_name:
+            USERS[usr_id]['first_name'] = first_name
+        if USERS[usr_id]['last_name'] != last_name:
+            USERS[usr_id]['last_name'] = last_name
+        if USERS[usr_id]['username'] != username:
+           USERS[usr_id]['username'] = username
 
 def get_id(bot):
     return str(bot.effective_user['id'])
@@ -280,7 +290,7 @@ def get_admin_stat(usr_id): # выдаёт админам личные данн�
 # А ВОТ ТУТ УЖЕ РЕАЛ БОТИК
 
 def greeting_to_unseen_user(msg): # тебя давно не было в уличных гонках
-    msg.reply_text('Я давно тебя не видела, сенпай!\nНа всякий случай, пропиши ещё раз\n/start - вдруг во мне появились новые функции!')
+    msg.reply_text('Я давно тебя не видела, сенпай!\nНа всякий случай, пропиши ещё раз\n/start - вдруг у меня появились новые функции!')
 
 def sms(bot, update): # отвечает на /start
     global USERS
