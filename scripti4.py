@@ -724,6 +724,7 @@ def whensmoketime(bot, update): #когда там перекур
     curr_time = datetime.datetime.now().time()
     curr_state = 'не на парах' # возможные состояния: не на парах, на паре, перекур
     time_to_smoke = 0
+    time_to_smoke_seconds = 0
     pair_num = 0
      
     for p_num in PAIRS_TIME:
@@ -734,6 +735,7 @@ def whensmoketime(bot, update): #когда там перекур
             curr_state = 'на паре'
             pair_num = p_num
             time_to_smoke = datetime.datetime.combine(datetime.date.today(), p_end) - datetime.datetime.combine(datetime.date.today(), curr_time)
+            time_to_smoke_seconds = time_to_smoke.seconds + round(time_to_smoke.microseconds/10**6)
             time_to_smoke = round((time_to_smoke.seconds + round(time_to_smoke.microseconds/10**6)) / 60)
             # получается время в минутах
         elif p_num + 1 < len(PAIRS_TIME):
@@ -748,7 +750,9 @@ def whensmoketime(bot, update): #когда там перекур
         if time_to_smoke >= 60:
             time_to_smoke -= 60
             bot.message.reply_text('До перекура 1 час {} минут'.format(time_to_smoke))
-        else:
+        elif time_to_smoke == 0:
+            bot.message.reply_text('До перекура {} секунд'.format(time_to_smoke_seconds))
+        else:  
             bot.message.reply_text('До перекура {} минут'.format(time_to_smoke))
 
         time.sleep(SLEEP_TIME)
@@ -761,7 +765,7 @@ def whensmoketime(bot, update): #когда там перекур
         bot.message.reply_text('Ура, бегом на перекур!!!')
         
         time.sleep(SLEEP_TIME)
-        bot.message.reply_text('Только на следующую пару не опаздай)')
+        bot.message.reply_text('Только на следующую пару не опоздай)')
         
         update.bot.send_photo(chat_id=bot.message.chat.id, photo=open('SMOKETIME/smoketime.jpg', 'rb'))
     else:
