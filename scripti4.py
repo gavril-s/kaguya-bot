@@ -750,7 +750,7 @@ def whensmoketime(bot, update): #когда там перекур
         if time_to_smoke >= 60:
             time_to_smoke -= 60
             bot.message.reply_text('До перекура 1 час {} минут'.format(time_to_smoke))
-        elif time_to_smoke == 0:
+        elif time_to_smoke_seconds < 60:
             bot.message.reply_text('До перекура {} секунд'.format(time_to_smoke_seconds))
         else:  
             bot.message.reply_text('До перекура {} минут'.format(time_to_smoke))
