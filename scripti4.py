@@ -269,6 +269,24 @@ def compute_emo_rate(msg): # вычисляет эмоциональную ок�
             return 0
     return rate / len(msg_words)
 
+def get_minutes_declension(x):
+    x_last = x % 10
+    if x_last == 0 or x_last >= 5 or 10 <= x <= 20:
+        return 'минут'
+    elif x_last == 1:
+        return 'минута'
+    else:
+        return 'минуты'
+
+def get_seconds_declension(x):
+    x_last = x % 10
+    if x_last == 0 or x_last >= 5 or 10 <= x <= 20:
+        return 'секунд'
+    elif x_last == 1:
+        return 'секунда'
+    else:
+        return 'секунды'
+
 def build_menu(buttons,n_cols,header_buttons=None,footer_buttons=None): # это я вообще на каком-то форуме подрезал
     menu = [buttons[i:i + n_cols] for i in range(0, len(buttons), n_cols)]
     if header_buttons:
@@ -724,7 +742,11 @@ def whensmoketime(bot, update): #когда там перекур
     curr_time = datetime.datetime.now().time()
     curr_state = 'не на парах' # возможные состояния: не на парах, на паре, перекур
     time_to_smoke = 0
+    time_to_smoke_minutes = 0
     time_to_smoke_seconds = 0
+    time_to_next_pair = -1  # -1 значит что следующей пары нет
+    time_to_next_pair_minutes = 0
+    time_to_next_pair_seconds = 0
     pair_num = 0
      
     for p_num in PAIRS_TIME:
@@ -736,24 +758,30 @@ def whensmoketime(bot, update): #когда там перекур
             pair_num = p_num
             time_to_smoke = datetime.datetime.combine(datetime.date.today(), p_end) - datetime.datetime.combine(datetime.date.today(), curr_time)
             time_to_smoke_seconds = time_to_smoke.seconds + round(time_to_smoke.microseconds/10**6)
-            time_to_smoke = round((time_to_smoke.seconds + round(time_to_smoke.microseconds/10**6)) / 60)
+            time_to_smoke_minutes = round((time_to_smoke.seconds + round(time_to_smoke.microseconds/10**6)) / 60)
             # получается время в минутах
         elif p_num + 1 < len(PAIRS_TIME):
             next_p_start = PAIRS_TIME[p_num + 1]['start']
             if next_p_start >= curr_time >= p_end:
                 curr_state = 'перекур'
+                time_to_next_pair = datetime.datetime.combine(datetime.date.today(), next_p_start) - datetime.datetime.combine(datetime.date.today(), curr_time)
+                time_to_next_pair_seconds = time_to_next_pair.seconds + round(time_to_next_pair.microseconds/10**6)
+                time_to_next_pair_minutes = round((time_to_next_pair.seconds + round(time_to_next_pair.microseconds/10**6)) / 60)
 
     if curr_state == 'на паре':
         time.sleep(SLEEP_TIME)
         bot.message.reply_text('Так, сейчас у тебя {} пара'.format(pair_num))
         
-        if time_to_smoke >= 60:
-            time_to_smoke -= 60
-            bot.message.reply_text('До перекура 1 час {} минут'.format(time_to_smoke))
+        if time_to_smoke_minutes >= 60:
+            time_to_smoke_minutes -= 60
+            if time_to_smoke_minutes == 0:
+                bot.message.reply_text('До перекура 1 час')
+            else:
+                bot.message.reply_text('До перекура 1 час {} {}'.format(time_to_smoke_minutes, get_minutes_declension(time_to_smoke_minutes)))
         elif time_to_smoke_seconds < 60:
-            bot.message.reply_text('До перекура {} секунд'.format(time_to_smoke_seconds))
+            bot.message.reply_text('До перекура {} {}'.format(time_to_smoke_seconds, get_seconds_declension(time_to_smoke_seconds)))
         else:  
-            bot.message.reply_text('До перекура {} минут'.format(time_to_smoke))
+            bot.message.reply_text('До перекура {} {}'.format(time_to_smoke_minutes, get_minutes_declension(time_to_smoke_minutes)))
 
         time.sleep(SLEEP_TIME)
         bot.message.reply_text('Учись усерднее, {}'.format(bot.message.chat.first_name))
@@ -764,8 +792,11 @@ def whensmoketime(bot, update): #когда там перекур
         time.sleep(SLEEP_TIME)
         bot.message.reply_text('Ура, бегом на перекур!!!')
         
-        time.sleep(SLEEP_TIME)
-        bot.message.reply_text('Только на следующую пару не опоздай)')
+        if time_to_next_pair != -1:
+            if time_to_next_pair_seconds < 60:
+                bot.message.reply_text('До начала пары {} {}'.format(time_to_next_pair_seconds, get_seconds_declension(time_to_next_pair_seconds)))
+            else:
+                bot.message.reply_text('До начала пары {} {}'.format(time_to_next_pair_minutes, get_minutes_declension(time_to_next_pair_minutes)))
         
         update.bot.send_photo(chat_id=bot.message.chat.id, photo=open('SMOKETIME/smoketime.jpg', 'rb'))
     else:
