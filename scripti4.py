@@ -760,7 +760,7 @@ def whensmoketime(bot, update): #когда там перекур
             time_to_smoke_seconds = time_to_smoke.seconds + round(time_to_smoke.microseconds/10**6)
             time_to_smoke_minutes = round((time_to_smoke.seconds + round(time_to_smoke.microseconds/10**6)) / 60)
             # получается время в минутах
-        elif p_num + 1 < len(PAIRS_TIME):
+        elif p_num < len(PAIRS_TIME):
             next_p_start = PAIRS_TIME[p_num + 1]['start']
             if next_p_start >= curr_time >= p_end:
                 curr_state = 'перекур'
