@@ -20,6 +20,9 @@ from pyowm.utils import config as cfg
 # для привода слов к стандартной форме
 import pymorphy2
 
+# для чтения расписания
+import xlrd
+
 # для рандомного выбирания картинок и ответов
 from random import choice
 import random
@@ -87,6 +90,8 @@ NEGATIVE_WHY_ANSWERS = ['Потому что иди нахуй', 'Тя ебат�
 MONTHS = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря']
 
 OR_ANSWERS = ['Ну разумеется', 'Конечно же', 'Я думаю', 'Мне кажется', 'Я выбираю', 'Мне больше нравится']
+
+WEEKDAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
 
 PAIRS_TIME = {
     1 : {'start': datetime.time(9,  0),  'end' : datetime.time(10, 30)},
@@ -197,7 +202,10 @@ def register_user(msg): # пажилая регистрация...
         'max_rating_pos_msgs': [],
         'max_rating_neg_msgs': [],
         'top_messages': dict(), # топ сообщений челика
-        'last_usage' : time.time() # время последнего использования
+        'last_usage' : time.time(), # время последнего использования
+        'group': '',
+        'last_timetable_update' : time.time(),
+        'timetable': dict()
     }
 
 def check_registration(bot):
@@ -227,6 +235,74 @@ def get_id(bot):
 
 def get_id_bymsg(msg):
     return str(msg.from_user['id'])
+
+def update_timetable(msg):
+    usr_id = get_id_bymsg(msg)
+    
+    workbook = xlrd.open_workbook('IIT-1-kurs_27.09.2022.xlsx', on_demand=True)
+
+    for sheet_num in range(len(workbook.sheet_names())):
+        worksheet = workbook.sheet_by_index(sheet_num)
+        if USERS[usr_id]['group'] == worksheet.cell_value(1, 5):
+            USERS[usr_id]['timetable'] = {i : [] for i in WEEKDAYS}
+            base_column = 5
+            base_row = 3
+
+            for day in WEEKDAYS:
+                for row in range(base_row, base_row + 12, 2):
+                    row1 = clear_timetable_row(worksheet.cell_value(row, base_column))
+                    row2 = clear_timetable_row(worksheet.cell_value(row + 1, base_column))
+                    USERS[usr_id]['timetable'][day].append((row1, row2))
+                base_row += 12
+        elif USERS[usr_id]['group'] == worksheet.cell_value(1, 10):
+            USERS[usr_id]['timetable'] = {i : [] for i in WEEKDAYS}
+            base_column = 10
+            base_row = 3
+
+            for day in WEEKDAYS:
+                for row in range(base_row, base_row + 12, 2):
+                    row1 = clear_timetable_row(worksheet.cell_value(row, base_column))
+                    row2 = clear_timetable_row(worksheet.cell_value(row + 1, base_column))
+                    USERS[usr_id]['timetable'][day].append((row1, row2))
+                base_row += 12
+
+    workbook.release_resources()
+    del workbook
+    write_users()
+
+def clear_timetable_row(row):
+    del_list = ['кр.', 'н.', ',']
+    del_list += [str(i) for i in range(10)]
+    new_row = row.strip()
+    for i in del_list:
+        new_row = new_row.replace(i, '')
+    return new_row.strip()
+
+def get_today_pairs(msg):
+    usr_id = get_id_bymsg(msg)
+    update_timetable(msg)
+    weekday = datetime.datetime.today().strftime('%A')
+
+    if USERS[usr_id]['timetable'] == {}:
+        return list()
+
+    today_pairs = USERS[usr_id]['timetable'][weekday]
+    weeknum = datetime.datetime.now().isocalendar()[1] - datetime.date(datetime.datetime.now().year, 9, 1).isocalendar()[1] + 1
+    if weeknum % 2 == 1:
+        return [i[0] for i in today_pairs]
+    else:
+        return [i[1] for i in today_pairs]
+
+def get_today_pairs_nums(msg):
+    today_pairs = get_today_pairs(msg)
+    if today_pairs == []:
+        return "no data"
+    else:
+        res = []
+        for i in range(len(today_pairs)):
+            if today_pairs[i] != '':
+                res.append(i + 1)
+        return res
 
 def norm_word(x): # приводит слово к начальной форме
     global MORPH
@@ -398,6 +474,28 @@ def exec_cmd(bot, update):
         bot.message.reply_text(output)
     else:
         bot.message.reply_text('Иди нах')
+    USERS[usr_id]['last_usage'] = time.time()
+    write_users()
+
+def set_group_cmd(bot, update):
+    global USERS
+    usr_id = get_id_bymsg(bot.message)
+    check_registration_bymsg(bot.message)
+    log(bot.message)
+    USERS[usr_id]['msg_count'] += 1
+    if USERS[usr_id]['waiting_for_city']:
+        USERS[usr_id]['waiting_for_city'] = False
+    if USERS[usr_id]['waiting_for_random']:
+        USERS[usr_id]['waiting_for_random'] = False
+    if time.time() - USERS[usr_id]['last_usage'] > CRITICAL_LAST_USAGE_TIME:
+        greeting_to_unseen_user(bot.message)
+
+    USERS[usr_id]['group'] = bot.message.text[11:].strip()
+
+    update_timetable(bot.message)
+    bot.message.reply_text(str(USERS[usr_id]['group']) + '\nПринято!')
+    #bot.message.reply_text(str(USERS[usr_id]['timetable']))
+
     USERS[usr_id]['last_usage'] = time.time()
     write_users()
 
@@ -739,6 +837,7 @@ def whensmoketime(bot, update): #когда там перекур
     time.sleep(SLEEP_TIME)
     bot.message.reply_text('Нууу ладно, сейчас посчитаю')
 
+    today_pairs_nums = get_today_pairs_nums(bot.message)
     curr_time = datetime.datetime.now().time()
     curr_state = 'не на парах' # возможные состояния: не на парах, на паре, перекур
     time_to_smoke = 0
@@ -748,8 +847,13 @@ def whensmoketime(bot, update): #когда там перекур
     time_to_next_pair_minutes = 0
     time_to_next_pair_seconds = 0
     pair_num = 0
-     
-    for p_num in PAIRS_TIME:
+
+    if USERS[usr_id]['group'] == '' or today_pairs_nums == "no data":
+        time.sleep(SLEEP_TIME)
+        bot.message.reply_text('(Кстати, ты можешь указать свою группу при помощи команды /set_group [группа] и я буду показывать тебе более точную информацию о перекурах)')
+        today_pairs_nums = PAIRS_TIME.keys()
+
+    for p_num in today_pairs_nums:
         p_start = PAIRS_TIME[p_num]['start']
         p_end = PAIRS_TIME[p_num]['end']
 
@@ -760,7 +864,7 @@ def whensmoketime(bot, update): #когда там перекур
             time_to_smoke_seconds = time_to_smoke.seconds + round(time_to_smoke.microseconds/10**6)
             time_to_smoke_minutes = round((time_to_smoke.seconds + round(time_to_smoke.microseconds/10**6)) / 60)
             # получается время в минутах
-        elif p_num < len(PAIRS_TIME):
+        elif p_num + 1 in today_pairs_nums:
             next_p_start = PAIRS_TIME[p_num + 1]['start']
             if next_p_start >= curr_time >= p_end:
                 curr_state = 'перекур'
@@ -880,6 +984,7 @@ def main(): # БАЗА
     bot.dispatcher.add_handler(CommandHandler('help', help_user))
     bot.dispatcher.add_handler(CommandHandler('stat', stat))
     bot.dispatcher.add_handler(CommandHandler('exec', exec_cmd))
+    bot.dispatcher.add_handler(CommandHandler('set_group', set_group_cmd))
     bot.dispatcher.add_handler(MessageHandler(Filters.regex('Кто я сегодня?'), whoami))
     bot.dispatcher.add_handler(MessageHandler(Filters.regex('Скинь ножки'), sendlegs))
     bot.dispatcher.add_handler(MessageHandler(Filters.regex('Рандомчик'), dorandom))
