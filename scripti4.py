@@ -135,6 +135,7 @@ CRITICAL_LAST_USAGE_TIME = 1209600 # (в секундах) две недели
 CRITICAL_LAST_TIMETABLE_UPDATE_TIME = 43200 # (в секундах) 12 часов
 SLEEP_TIME = 0.6 # задержка в отправке сообщений, шобы на человека было похоже (в секундах)
 DEFAULT_DATE_FORMAT = "%y.%m.%d"
+NIGHT_LIMIT = 5 # текущее число считается "завтра" до 5 утра
 
 MORNING_START = 6  #
 DAY_START = 12     # начало дня, вечера и ночи
@@ -355,8 +356,8 @@ def get_nearest_pair_time(msg, dt): # dt ОБЯЗАТЕЛЬНО типа datetim
         pairs = get_pairs_nums(msg, dt)
         if pairs != None and len(pairs) > 0:
             for p in pairs:
-                if datetime.datetime.now() < datetime.datetime.combine(dt + delta * i, PAIRS_TIME[pairs[0]]['start']):
-                    return datetime.datetime.combine(dt + delta * i, PAIRS_TIME[pairs[0]]['start'])
+                if datetime.datetime.now() < datetime.datetime.combine(dt + delta * i, PAIRS_TIME[pairs[p]]['start']):
+                    return datetime.datetime.combine(dt + delta * i, PAIRS_TIME[pairs[p]]['start'])
         i += 1
     return None
 
@@ -1256,7 +1257,10 @@ def whentogetup(bot, update):
         USERS[usr_id]['waiting_for_get_up_time'] = True
     else:
         base_get_up_time = datetime.time(USERS[usr_id]['base_get_up_time_hour'], USERS[usr_id]['base_get_up_time_minute'])
-        tomorrow_pairs_nums = get_pairs_nums(bot.message, datetime.date.today() + datetime.timedelta(days=1))
+        if datetime.datetime.now().hour < NIGHT_LIMIT:
+            tomorrow_pairs_nums = get_pairs_nums(bot.message, datetime.date.today())
+        else:
+            tomorrow_pairs_nums = get_pairs_nums(bot.message, datetime.date.today() + datetime.timedelta(days=1))
         if tomorrow_pairs_nums == None:
             time.sleep(SLEEP_TIME)
             bot.message.reply_text('Я не знаю, какие пары у тебя завтра. Похуй, вставай в {}'.format(base_get_up_time.strftime("%H:%M")))
