@@ -134,6 +134,7 @@ DEFAULT_RATING = 100 # рейтинг сообщения по умолчанию
 CRITICAL_LAST_USAGE_TIME = 1209600 # (в секундах) две недели
 CRITICAL_LAST_TIMETABLE_UPDATE_TIME = 43200 # (в секундах) 12 часов
 SLEEP_TIME = 0.6 # задержка в отправке сообщений, шобы на человека было похоже (в секундах)
+DEFAULT_DATE_FORMAT = "%y.%m.%d"
 
 MORNING_START = 6  #
 DAY_START = 12     # начало дня, вечера и ночи
@@ -176,7 +177,9 @@ def read_users():
         f = io.open('users.json', mode='r', encoding='utf-8')
         USERS = json.loads(f.read())
         f.close()
-        #for id in USERS:
+        for usr_id in USERS:
+            if 'pair_skips' not in USERS[usr_id]:
+                USERS[usr_id]['pair_skips'] = []
         #    if 'max_rating_pos_msgs' not in USERS[id]:
         #        USERS[id]['max_rating_pos_msgs'] = []
         #    if 'max_rating_neg_msgs' not in USERS[id]:
@@ -211,7 +214,7 @@ def register_user(msg): # пажилая регистрация...
     USERS[id] = {
         'first_name' : first_name,
         'last_name' : last_name,
-        'username': username,
+        'username' : username,
         'mood' : 0,
         'city' : '',
         'rand_max': 0,
@@ -219,18 +222,19 @@ def register_user(msg): # пажилая регистрация...
         'waiting_for_random' : False,
         'msg_count' : 0,
         'pics_unlocked' : 0,
-        'pics': [False] * len(glob('LEGS/*')),
+        'pics' : [False] * len(glob('LEGS/*')),
         'max_rating_pos_msgs': [],
         'max_rating_neg_msgs': [],
-        'top_messages': dict(), # топ сообщений челика
+        'top_messages' : dict(), # топ сообщений челика
         'last_usage' : time.time(), # время последнего использования
         'group': '',
         'last_timetable_update' : None,
         'timetable': dict(), 
-        'base_get_up_time_hour': None,
+        'base_get_up_time_hour' : None,
         'base_get_up_time_minute': None,
-        'waiting_for_get_up_time': False,
-        'show_set_group_notice': True
+        'waiting_for_get_up_time' : False,
+        'show_set_group_notice' : True,
+        'pair_skips' : []
     }
 
 def check_registration(bot):
@@ -619,6 +623,166 @@ def disable_groups_cmd(bot, update):
     USERS[usr_id]['last_usage'] = time.time()
     write_users()
 
+def add_skip_cmd(bot, update):
+    global USERS
+    usr_id = get_id_bymsg(bot.message)
+    check_registration_bymsg(bot.message)
+    log(bot.message)
+    USERS[usr_id]['msg_count'] += 1
+    if USERS[usr_id]['waiting_for_city']:
+        USERS[usr_id]['waiting_for_city'] = False
+    if USERS[usr_id]['waiting_for_random']:
+        USERS[usr_id]['waiting_for_random'] = False
+    if USERS[usr_id]['waiting_for_get_up_time']:
+        USERS[usr_id]['waiting_for_get_up_time'] = False
+    if time.time() - USERS[usr_id]['last_usage'] > CRITICAL_LAST_USAGE_TIME:
+        greeting_to_unseen_user(bot.message)
+
+    inp = bot.message.text[10:].strip().split()
+
+    try:
+        dt = inp[0]
+        if len(inp) > 1:
+            pair_num = inp[1]
+        else:
+            pair_num = -1
+    except:
+        time.sleep(SLEEP_TIME)
+        bot.message.reply_text('Эмм...')
+        return
+
+    try:
+        dt = datetime.datetime.strptime(dt, "%d.%m")
+    except:
+        try:
+            dt = datetime.datetime.strptime(dt, "%d.%m.%Y")
+        except:
+            time.sleep(SLEEP_TIME)
+            bot.message.reply_text('Эмм...')
+            return
+
+    try:
+        pair_num = int(pair_num)
+    except:
+        time.sleep(SLEEP_TIME)
+        bot.message.reply_text('Эмм...')
+        return
+    
+    if not (6 >= pair_num >= 1) and pair_num != -1:
+        time.sleep(SLEEP_TIME)
+        bot.message.reply_text('Нет таких пар, дэбил')
+        return
+    
+    dt_pairs = get_pairs(bot.message, dt)
+    if dt_pairs == [] or pair_num == -1:
+        skip = {
+            'type': ('undefined', 'single'),
+            'date': datetime.datetime.strftime(dt, DEFAULT_DATE_FORMAT)
+        }
+    else:
+        if dt_pairs[pair_num - 1] == '':
+            skip = {
+                'type': ('defined', 'single'),
+                'date': datetime.datetime.strftime(dt, DEFAULT_DATE_FORMAT),
+                'pair_num': pair_num,
+                'pair_name': 'Нет информации'
+            }
+        else:
+            skip = {
+                'type': ('defined', 'single'),
+                'date': datetime.datetime.strftime(dt, DEFAULT_DATE_FORMAT),
+                'pair_num': pair_num,
+                'pair_name': dt_pairs[pair_num - 1]
+            }
+
+    USERS[usr_id]['pair_skips'].append(skip)
+
+    USERS[usr_id]['last_usage'] = time.time()
+    write_users()
+
+def add_skips_cmd(bot, update):
+    global USERS
+    usr_id = get_id_bymsg(bot.message)
+    check_registration_bymsg(bot.message)
+    log(bot.message)
+    USERS[usr_id]['msg_count'] += 1
+    if USERS[usr_id]['waiting_for_city']:
+        USERS[usr_id]['waiting_for_city'] = False
+    if USERS[usr_id]['waiting_for_random']:
+        USERS[usr_id]['waiting_for_random'] = False
+    if USERS[usr_id]['waiting_for_get_up_time']:
+        USERS[usr_id]['waiting_for_get_up_time'] = False
+    if time.time() - USERS[usr_id]['last_usage'] > CRITICAL_LAST_USAGE_TIME:
+        greeting_to_unseen_user(bot.message)
+
+    inp = bot.message.text[11:].strip().split()
+    try:
+        begin_date = inp[0]
+        end_date = inp[1]
+        amount = inp[2]
+    except:
+        time.sleep(SLEEP_TIME)
+        bot.message.reply_text('Эмм...')
+        return
+    
+    try:
+        begin_date = datetime.datetime.strptime(begin_date, "%d.%m")
+    except:
+        try:
+            begin_date = datetime.datetime.strptime(begin_date, "%d.%m.%y")
+        except:
+            time.sleep(SLEEP_TIME)
+            bot.message.reply_text('Эмм...')
+            return
+    
+    try:
+        end_date = datetime.datetime.strptime(end_date, "%d.%m")
+    except:
+        try:
+            end_date = datetime.datetime.strptime(end_date, "%d.%m.%y")
+        except:
+            time.sleep(SLEEP_TIME)
+            bot.message.reply_text('Эмм...')
+            return
+
+    try:
+        amount = int(amount)
+    except:
+        time.sleep(SLEEP_TIME)
+        bot.message.reply_text('Эмм...')
+        return
+
+    skip = {
+        'type': ('undefined', 'multi'),
+        'begin_date': datetime.datetime.strftime(begin_date, DEFAULT_DATE_FORMAT),
+        'end_date': datetime.datetime.strftime(end_date, DEFAULT_DATE_FORMAT),
+        'amount': amount
+    }
+
+    USERS[usr_id]['pair_skips'].append(skip)
+
+    USERS[usr_id]['last_usage'] = time.time()
+    write_users()
+
+def skips_cmd(bot, update):
+    global USERS
+    usr_id = get_id_bymsg(bot.message)
+    check_registration_bymsg(bot.message)
+    log(bot.message)
+    USERS[usr_id]['msg_count'] += 1
+    if USERS[usr_id]['waiting_for_city']:
+        USERS[usr_id]['waiting_for_city'] = False
+    if USERS[usr_id]['waiting_for_random']:
+        USERS[usr_id]['waiting_for_random'] = False
+    if USERS[usr_id]['waiting_for_get_up_time']:
+        USERS[usr_id]['waiting_for_get_up_time'] = False
+    if time.time() - USERS[usr_id]['last_usage'] > CRITICAL_LAST_USAGE_TIME:
+        greeting_to_unseen_user(bot.message)
+
+    bot.message.reply_text(USERS[usr_id]['pair_skips'])
+
+    USERS[usr_id]['last_usage'] = time.time()
+    write_users()
 
 def reply(bot, update): # ответ на обычное сообщение
     global USERS
@@ -1194,6 +1358,9 @@ def main(): # БАЗА
     bot.dispatcher.add_handler(CommandHandler('set_group', set_group_cmd))
     bot.dispatcher.add_handler(CommandHandler('set_wakeup_time', set_wakeup_time_cmd))
     bot.dispatcher.add_handler(CommandHandler('disable_groups', disable_groups_cmd))
+    bot.dispatcher.add_handler(CommandHandler('add_skip', add_skip_cmd))
+    bot.dispatcher.add_handler(CommandHandler('add_skips', add_skips_cmd))
+    bot.dispatcher.add_handler(CommandHandler('skips', skips_cmd))
     bot.dispatcher.add_handler(MessageHandler(Filters.regex('Кто я сегодня?'), whoami))
     bot.dispatcher.add_handler(MessageHandler(Filters.regex('Скинь ножки'), sendlegs))
     bot.dispatcher.add_handler(MessageHandler(Filters.regex('Рандомчик'), dorandom))
