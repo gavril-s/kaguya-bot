@@ -116,6 +116,7 @@ MAX_RATING_POS_MSGS_SIZE = 20
 MAX_RATING_NEG_MSGS_SIZE = 20
 DEFAULT_RATING = 100 # рейтинг сообщения по умолчанию
 CRITICAL_LAST_USAGE_TIME = 1209600 # (в секундах) две недели
+CRITICAL_LAST_TIMETABLE_UPDATE_TIME = 43200 # (в секундах) 12 часов
 SLEEP_TIME = 0.6 # задержка в отправке сообщений, шобы на человека было похоже (в секундах)
 
 MORNING_START = 6  #
@@ -151,12 +152,14 @@ def read_holidays():
         for i in range(3, len(tmp)):
             holiday += tmp[i] + ' '
         HOLIDAYS[tmp[0] + ' ' + tmp[1]] = holiday
+    f.close()
 
 def read_users():
     global USERS
     try:
-        f = io.open('users.json', mode='r', encoding='utf-8').read()
-        USERS = json.loads(f)
+        f = io.open('users.json', mode='r', encoding='utf-8')
+        USERS = json.loads(f.read())
+        f.close()
         #for id in USERS:
         #    if 'max_rating_pos_msgs' not in USERS[id]:
         #        USERS[id]['max_rating_pos_msgs'] = []
@@ -173,6 +176,7 @@ def read_users():
     except Exception:
         f = io.open('users.json', mode='w', encoding='utf-8')
         f.write('{}')
+        f.close()
         USERS = dict()
     #print(USERS)
 
@@ -180,6 +184,7 @@ def write_users():
     f = io.open('users.json', mode='w', encoding='utf-8')
     json_string = json.dumps(USERS)
     f.write(json_string)
+    f.close()
 
 def register_user(msg): # пажилая регистрация...
     global USERS
@@ -204,8 +209,11 @@ def register_user(msg): # пажилая регистрация...
         'top_messages': dict(), # топ сообщений челика
         'last_usage' : time.time(), # время последнего использования
         'group': '',
-        'last_timetable_update' : time.time(),
-        'timetable': dict()
+        'last_timetable_update' : None,
+        'timetable': dict(), 
+        'base_get_up_time_hour': None,
+        'base_get_up_time_minute': None,
+        'waiting_for_get_up_time': False
     }
 
 def check_registration(bot):
@@ -238,6 +246,9 @@ def get_id_bymsg(msg):
 
 def update_timetable(msg):
     usr_id = get_id_bymsg(msg)
+
+    if USERS[usr_id]['last_timetable_update'] != None and time.time() - USERS[usr_id]['last_timetable_update'] < CRITICAL_LAST_TIMETABLE_UPDATE_TIME:
+        return
     
     workbook = xlrd.open_workbook('IIT-1-kurs_27.09.2022.xlsx', on_demand=True)
 
@@ -254,6 +265,7 @@ def update_timetable(msg):
                     row2 = clear_timetable_row(worksheet.cell_value(row + 1, base_column))
                     USERS[usr_id]['timetable'][day].append((row1, row2))
                 base_row += 12
+            break
         elif USERS[usr_id]['group'] == worksheet.cell_value(1, 10):
             USERS[usr_id]['timetable'] = {i : [] for i in WEEKDAYS}
             base_column = 10
@@ -265,9 +277,11 @@ def update_timetable(msg):
                     row2 = clear_timetable_row(worksheet.cell_value(row + 1, base_column))
                     USERS[usr_id]['timetable'][day].append((row1, row2))
                 base_row += 12
+            break
 
     workbook.release_resources()
     del workbook
+    USERS[usr_id]['last_timetable_update'] = time.time()
     write_users()
 
 def clear_timetable_row(row):
@@ -278,31 +292,37 @@ def clear_timetable_row(row):
         new_row = new_row.replace(i, '')
     return new_row.strip()
 
-def get_today_pairs(msg):
+def get_pairs(msg, dt):
     usr_id = get_id_bymsg(msg)
     update_timetable(msg)
-    weekday = datetime.datetime.today().strftime('%A')
+    weekday = dt.strftime('%A')
 
     if USERS[usr_id]['timetable'] == {}:
         return list()
 
-    today_pairs = USERS[usr_id]['timetable'][weekday]
-    weeknum = datetime.datetime.now().isocalendar()[1] - datetime.date(datetime.datetime.now().year, 9, 1).isocalendar()[1] + 1
+    pairs = USERS[usr_id]['timetable'][weekday]
+    weeknum = dt.isocalendar()[1] - datetime.date(dt.year, 9, 1).isocalendar()[1] + 1
     if weeknum % 2 == 1:
-        return [i[0] for i in today_pairs]
+        return [i[0] for i in pairs]
     else:
-        return [i[1] for i in today_pairs]
+        return [i[1] for i in pairs]
 
-def get_today_pairs_nums(msg):
-    today_pairs = get_today_pairs(msg)
-    if today_pairs == []:
-        return "no data"
+def get_today_pairs(msg):
+    return get_pairs(msg, datetime.datetime.today())
+
+def get_pairs_nums(msg, dt):
+    pairs = get_pairs(msg, dt)
+    if pairs == []:
+        return None
     else:
         res = []
-        for i in range(len(today_pairs)):
-            if today_pairs[i] != '':
+        for i in range(len(pairs)):
+            if pairs[i] != '':
                 res.append(i + 1)
         return res
+
+def get_today_pairs_nums(msg):
+    return get_pairs_nums(msg, datetime.datetime.today())
 
 def norm_word(x): # приводит слово к начальной форме
     global MORPH
@@ -405,7 +425,9 @@ def sms(bot, update): # отвечает на /start
         USERS[usr_id]['waiting_for_city'] = False
     if USERS[usr_id]['waiting_for_random']:
         USERS[usr_id]['waiting_for_random'] = False
-    keyboard = ReplyKeyboardMarkup([['Скинь ножки', 'Какой сегодня день?'], ['Кто я сегодня?', 'Сколько до перекура?'], ['Какая погода сейчас?', 'Рандомчик']], resize_keyboard=True)
+    if USERS[usr_id]['waiting_for_get_up_time']:
+        USERS[usr_id]['waiting_for_get_up_time'] = False
+    keyboard = ReplyKeyboardMarkup([['Скинь ножки', 'Какой сегодня день?'], ['Кто я сегодня?', 'Сколько до перекура?'], ['Какая погода сейчас?', 'Рандомчик'], ['Во сколько мне завтра вставать?']], resize_keyboard=True)
     bot.message.reply_text('Охае, {}!'.format(bot.message.chat.first_name))
     time.sleep(SLEEP_TIME)
     bot.message.reply_text("Меня зовут Кагуя Синомия. Давай поболтаем (чтобы увидеть всё, что я могу, напиши /help)", reply_markup=keyboard)
@@ -423,6 +445,8 @@ def help_user(bot, update): # отвечает на /help
         USERS[usr_id]['waiting_for_city'] = False
     if USERS[usr_id]['waiting_for_random']:
         USERS[usr_id]['waiting_for_random'] = False
+    if USERS[usr_id]['waiting_for_get_up_time']:
+        USERS[usr_id]['waiting_for_get_up_time'] = False
     if time.time() - USERS[usr_id]['last_usage'] > CRITICAL_LAST_USAGE_TIME:
         greeting_to_unseen_user(bot.message)
     help_text = 'Привет, меня зовут Кагуя!\nМожешь потыкать на кнопки или написать мне обычное сообщение, я отвечу.\n'
@@ -443,6 +467,8 @@ def stat(bot, update): # отвечает на /stat
         USERS[usr_id]['waiting_for_city'] = False
     if USERS[usr_id]['waiting_for_random']:
         USERS[usr_id]['waiting_for_random'] = False
+    if USERS[usr_id]['waiting_for_get_up_time']:
+        USERS[usr_id]['waiting_for_get_up_time'] = False
     if time.time() - USERS[usr_id]['last_usage'] > CRITICAL_LAST_USAGE_TIME:
         greeting_to_unseen_user(bot.message)
 
@@ -464,6 +490,8 @@ def exec_cmd(bot, update):
         USERS[usr_id]['waiting_for_city'] = False
     if USERS[usr_id]['waiting_for_random']:
         USERS[usr_id]['waiting_for_random'] = False
+    if USERS[usr_id]['waiting_for_get_up_time']:
+        USERS[usr_id]['waiting_for_get_up_time'] = False
     if time.time() - USERS[usr_id]['last_usage'] > CRITICAL_LAST_USAGE_TIME:
         greeting_to_unseen_user(bot.message)
 
@@ -487,6 +515,8 @@ def set_group_cmd(bot, update):
         USERS[usr_id]['waiting_for_city'] = False
     if USERS[usr_id]['waiting_for_random']:
         USERS[usr_id]['waiting_for_random'] = False
+    if USERS[usr_id]['waiting_for_get_up_time']:
+        USERS[usr_id]['waiting_for_get_up_time'] = False
     if time.time() - USERS[usr_id]['last_usage'] > CRITICAL_LAST_USAGE_TIME:
         greeting_to_unseen_user(bot.message)
 
@@ -521,6 +551,25 @@ def reply(bot, update): # ответ на обычное сообщение
             USERS[usr_id]['rand_max'] = -1
         USERS[usr_id]['waiting_for_random'] = False
         dorandom(bot, update)
+        return
+    if USERS[usr_id]['waiting_for_get_up_time']:
+        USERS[usr_id]['waiting_for_get_up_time'] = False
+        base_get_up_time = datetime.time(0, 0)
+        try:
+            base_get_up_time = datetime.datetime.strptime(bot.message.text, "%H:%M").time()
+        except:
+            try:
+                base_get_up_time = datetime.datetime.strptime(bot.message.text, "%H %M").time()
+            except:
+                try:
+                    base_get_up_time = datetime.datetime.strptime(bot.message.text, "%H").time()
+                except:
+                    time.sleep(SLEEP_TIME)
+                    bot.message.reply_text('Эммм...')
+                    return
+        USERS[usr_id]['base_get_up_time_hour'] = base_get_up_time.hour
+        USERS[usr_id]['base_get_up_time_minute'] = base_get_up_time.minute
+        whentogetup(bot, update)
         return
     if time.time() - USERS[usr_id]['last_usage'] > CRITICAL_LAST_USAGE_TIME:
         greeting_to_unseen_user(bot.message)
@@ -696,6 +745,10 @@ def whoami(bot, update): # отвечает на "Кто я сегодня?"
     USERS[usr_id]['msg_count'] += 1
     if USERS[usr_id]['waiting_for_city']:
         USERS[usr_id]['waiting_for_city'] = False
+    if USERS[usr_id]['waiting_for_random']:
+        USERS[usr_id]['waiting_for_random'] = False
+    if USERS[usr_id]['waiting_for_get_up_time']:
+        USERS[usr_id]['waiting_for_get_up_time'] = False
     if time.time() - USERS[usr_id]['last_usage'] > CRITICAL_LAST_USAGE_TIME:
         greeting_to_unseen_user(bot.message)
     if USERS[usr_id]['mood'] < 0:
@@ -724,6 +777,8 @@ def dorandom(bot, update): # отвечает на "Рандомчик"
         USERS[usr_id]['waiting_for_city'] = False
     if USERS[usr_id]['waiting_for_random']:
         USERS[usr_id]['waiting_for_random'] = False
+    if USERS[usr_id]['waiting_for_get_up_time']:
+        USERS[usr_id]['waiting_for_get_up_time'] = False
     if time.time() - USERS[usr_id]['last_usage'] > CRITICAL_LAST_USAGE_TIME:
         greeting_to_unseen_user(bot.message)
     
@@ -750,6 +805,8 @@ def sendlegs(bot, update): # отвечает на "Скинь ножки"
         USERS[usr_id]['waiting_for_city'] = False
     if USERS[usr_id]['waiting_for_random']:
         USERS[usr_id]['waiting_for_random'] = False
+    if USERS[usr_id]['waiting_for_get_up_time']:
+        USERS[usr_id]['waiting_for_get_up_time'] = False
     if time.time() - USERS[usr_id]['last_usage'] > CRITICAL_LAST_USAGE_TIME:
         greeting_to_unseen_user(bot.message)
     if USERS[usr_id]['mood'] < 0:
@@ -787,6 +844,8 @@ def sendday(bot, update): # отвечает на "Какой сегодня д�
         USERS[usr_id]['waiting_for_city'] = False
     if USERS[usr_id]['waiting_for_random']:
         USERS[usr_id]['waiting_for_random'] = False
+    if USERS[usr_id]['waiting_for_get_up_time']:
+        USERS[usr_id]['waiting_for_get_up_time'] = False
     if time.time() - USERS[usr_id]['last_usage'] > CRITICAL_LAST_USAGE_TIME:
         greeting_to_unseen_user(bot.message)
     bot.message.reply_text('Хммм, дай-ка подумать')
@@ -831,6 +890,8 @@ def whensmoketime(bot, update): #когда там перекур
         USERS[usr_id]['waiting_for_city'] = False
     if USERS[usr_id]['waiting_for_random']:
         USERS[usr_id]['waiting_for_random'] = False
+    if USERS[usr_id]['waiting_for_get_up_time']:
+        USERS[usr_id]['waiting_for_get_up_time'] = False
     if time.time() - USERS[usr_id]['last_usage'] > CRITICAL_LAST_USAGE_TIME:
         greeting_to_unseen_user(bot.message)
 
@@ -848,7 +909,7 @@ def whensmoketime(bot, update): #когда там перекур
     time_to_next_pair_seconds = 0
     pair_num = 0
 
-    if USERS[usr_id]['group'] == '' or today_pairs_nums == "no data":
+    if USERS[usr_id]['group'] == '' or today_pairs_nums == None:
         time.sleep(SLEEP_TIME)
         bot.message.reply_text('(Кстати, ты можешь указать свою группу при помощи команды /set_group [группа] и я буду показывать тебе более точную информацию о перекурах)')
         today_pairs_nums = PAIRS_TIME.keys()
@@ -912,6 +973,48 @@ def whensmoketime(bot, update): #когда там перекур
     USERS[usr_id]['last_usage'] = time.time()
     write_users()    
 
+def whentogetup(bot, update):
+    global USERS
+    usr_id = get_id_bymsg(bot.message)
+    check_registration_bymsg(bot.message)
+    log(bot.message)
+    USERS[usr_id]['msg_count'] += 1
+    if USERS[usr_id]['waiting_for_city']:
+        USERS[usr_id]['waiting_for_city'] = False
+    if USERS[usr_id]['waiting_for_random']:
+        USERS[usr_id]['waiting_for_random'] = False
+    if USERS[usr_id]['waiting_for_get_up_time']:
+        USERS[usr_id]['waiting_for_get_up_time'] = False
+    if time.time() - USERS[usr_id]['last_usage'] > CRITICAL_LAST_USAGE_TIME:
+        greeting_to_unseen_user(bot.message)
+
+    
+    if USERS[usr_id]['base_get_up_time_hour'] == None or USERS[usr_id]['base_get_up_time_minute'] == None:
+        time.sleep(SLEEP_TIME)
+        bot.message.reply_text('Во сколько ты встаёшь к первой паре?')
+        USERS[usr_id]['waiting_for_get_up_time'] = True
+    else:
+        base_get_up_time = datetime.time(USERS[usr_id]['base_get_up_time_hour'], USERS[usr_id]['base_get_up_time_minute'])
+        tomorrow_pairs_nums = get_pairs_nums(bot.message, datetime.date.today() + datetime.timedelta(days=1))
+        if tomorrow_pairs_nums == None:
+            time.sleep(SLEEP_TIME)
+            bot.message.reply_text('Я не знаю, какие пары у тебя завтра. Похуй, вставай в {}'.format(base_get_up_time.strftime("%H:%M")))
+            time.sleep(SLEEP_TIME)
+            bot.message.reply_text('(Если хочешь, чтобы я знала, когда у тебя пары, укажи свою группу через команду /set_group [группа])')
+        elif len(tomorrow_pairs_nums) == 0:
+            time.sleep(SLEEP_TIME)
+            bot.message.reply_text('Завтра нет пар!!')
+        else:
+            first_pair = min(tomorrow_pairs_nums)
+            get_up_time = datetime.datetime.combine(datetime.date.today(), PAIRS_TIME[first_pair]['start']) - datetime.datetime.combine(datetime.date.today(), PAIRS_TIME[1]['start'])
+            get_up_time += datetime.datetime.combine(datetime.date.today(), base_get_up_time)
+            
+            time.sleep(SLEEP_TIME)
+            bot.message.reply_text('Вставай в {}'.format(get_up_time.strftime("%H:%M")))
+            
+    USERS[usr_id]['last_usage'] = time.time()
+    write_users()    
+
 def weather(city: str): # получает погоду у врагов с Запада
     config_dict = cfg.get_default_config()
     config_dict['language'] = 'ru' 
@@ -946,6 +1049,8 @@ def sendweather(bot, update): # отправляет погоду
         USERS[usr_id]['waiting_for_city'] = False
     if USERS[usr_id]['waiting_for_random']:
         USERS[usr_id]['waiting_for_random'] = False
+    if USERS[usr_id]['waiting_for_get_up_time']:
+        USERS[usr_id]['waiting_for_get_up_time'] = False
     if time.time() - USERS[usr_id]['last_usage'] > CRITICAL_LAST_USAGE_TIME:
         try:
             greeting_to_unseen_user(bot.message)
@@ -964,7 +1069,6 @@ def sendweather(bot, update): # отправляет погоду
         w = weather(USERS[usr_id]['city'])
         rep = 'В городе ' + USERS[usr_id]['city'] + ' сейчас ' + str(round(w[0]["temp"])) + '°C, ' + w[1]
     except Exception as e:
-        print(e)
         rep = 'А этот город вообще существует, дурачье?'
         USERS[usr_id]['city'] = ''
     CONTROL_MSGS[get_id(bot)].reply_text(rep, reply_markup=reply_markup)    
@@ -990,6 +1094,7 @@ def main(): # БАЗА
     bot.dispatcher.add_handler(MessageHandler(Filters.regex('Рандомчик'), dorandom))
     bot.dispatcher.add_handler(MessageHandler(Filters.regex('Какой сегодня день?'), sendday))
     bot.dispatcher.add_handler(MessageHandler(Filters.regex('Сколько до перекура?'), whensmoketime))
+    bot.dispatcher.add_handler(MessageHandler(Filters.regex('Во сколько мне завтра вставать?'), whentogetup))
     bot.dispatcher.add_handler(MessageHandler(Filters.regex('Какая погода сейчас?'), sendweather_handler))
     bot.dispatcher.add_handler(MessageHandler(Filters.regex('Погода в другом городе'), change_weather_city))
     bot.dispatcher.add_handler(CallbackQueryHandler(change_weather_city, pattern='^Погода в другом городе$'))
