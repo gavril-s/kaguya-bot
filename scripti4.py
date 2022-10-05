@@ -46,6 +46,22 @@ USERS = dict()    # пользователи
 
 #############################
 # Псевдо ИИ
+
+HELP_TEXT = """
+Привет, меня зовут Кагуя!
+Можешь потыкать на кнопки или написать мне обычное сообщение, я отвечу.
+Если у тебя не отображаются какие-то функции, пропиши ещё раз /start.
+
+Основные команды:
+/stat - статистика по использованию бота
+/set_group [группа] - установить свою группу (для студентов МИРЭА)
+/set_wakeup_time [время] - установить время подъёма к первой паре
+/disable_groups - отключить подсказки об указании своей группы
+
+Остальные функции ты найдёшь на нижней панели после прописывания команды /start.
+Если у тебя возникли какие-либо вопросы по использованию бота, пиши @laxzzz :)
+"""
+
 POSITIVE_QUESTION_ANSWERS = ['Да, сенпай!', 'Да)', 'Ага', 'Согласна))', 'Так точно!', 'Может быть)', 'Проверь и узнаешь)', 'Скорее да',
                              'Нет, сенпай', 'Нет!', 'Неа', 'Не-не-не', 'Я стесняюсь отвечать на такие вопросы//', 'Нет, ты что)']
 NEGATIVE_QUIESTION_ANSWERS = ['Да и что', 'Ну да.', 'Ага.', 'Чел...', 'Нет', 'Сходи нахуй', 'Еблан...', 
@@ -213,7 +229,8 @@ def register_user(msg): # пажилая регистрация...
         'timetable': dict(), 
         'base_get_up_time_hour': None,
         'base_get_up_time_minute': None,
-        'waiting_for_get_up_time': False
+        'waiting_for_get_up_time': False,
+        'show_set_group_notice': True
     }
 
 def check_registration(bot):
@@ -452,11 +469,7 @@ def help_user(bot, update): # отвечает на /help
         USERS[usr_id]['waiting_for_get_up_time'] = False
     if time.time() - USERS[usr_id]['last_usage'] > CRITICAL_LAST_USAGE_TIME:
         greeting_to_unseen_user(bot.message)
-    help_text = 'Привет, меня зовут Кагуя!\nМожешь потыкать на кнопки или написать мне обычное сообщение, я отвечу.\n'
-    help_text += 'Если у тебя не отображаются какие-то функции, пропиши ещё раз /start.\n'
-    help_text += 'Чтобы увидеть статистику по использованию бота, напиши /stat.\n'
-    help_text += 'Если у тебя возникли какие-либо вопросы по использованию бота, пиши [данные удалены] :)'
-    bot.message.reply_text(help_text)
+    bot.message.reply_text(HELP_TEXT)
     USERS[usr_id]['last_usage'] = time.time()
     write_users()    
 
@@ -531,6 +544,69 @@ def set_group_cmd(bot, update):
 
     USERS[usr_id]['last_usage'] = time.time()
     write_users()
+
+def set_wakeup_time_cmd(bot, update):
+    global USERS
+    usr_id = get_id_bymsg(bot.message)
+    check_registration_bymsg(bot.message)
+    log(bot.message)
+    USERS[usr_id]['msg_count'] += 1
+    if USERS[usr_id]['waiting_for_city']:
+        USERS[usr_id]['waiting_for_city'] = False
+    if USERS[usr_id]['waiting_for_random']:
+        USERS[usr_id]['waiting_for_random'] = False
+    if USERS[usr_id]['waiting_for_get_up_time']:
+        USERS[usr_id]['waiting_for_get_up_time'] = False
+    if time.time() - USERS[usr_id]['last_usage'] > CRITICAL_LAST_USAGE_TIME:
+        greeting_to_unseen_user(bot.message)
+
+    inp_str = bot.message.text[17:].strip()
+
+    base_get_up_time = datetime.time(0, 0)
+    try:
+        base_get_up_time = datetime.datetime.strptime(inp_str, "%H:%M").time()
+    except:
+        try:
+            base_get_up_time = datetime.datetime.strptime(inp_str, "%H %M").time()
+        except:
+            try:
+                base_get_up_time = datetime.datetime.strptime(inp_str, "%H").time()
+            except:
+                time.sleep(SLEEP_TIME)
+                bot.message.reply_text('Эммм...')
+                return
+    USERS[usr_id]['base_get_up_time_hour'] = base_get_up_time.hour
+    USERS[usr_id]['base_get_up_time_minute'] = base_get_up_time.minute
+
+    time.sleep(SLEEP_TIME)
+    bot.message.reply_text('{}\nГотово'.format(base_get_up_time.strftime("%H:%M")))
+
+    USERS[usr_id]['last_usage'] = time.time()
+    write_users()
+
+def disable_groups_cmd(bot, update):
+    global USERS
+    usr_id = get_id_bymsg(bot.message)
+    check_registration_bymsg(bot.message)
+    log(bot.message)
+    USERS[usr_id]['msg_count'] += 1
+    if USERS[usr_id]['waiting_for_city']:
+        USERS[usr_id]['waiting_for_city'] = False
+    if USERS[usr_id]['waiting_for_random']:
+        USERS[usr_id]['waiting_for_random'] = False
+    if USERS[usr_id]['waiting_for_get_up_time']:
+        USERS[usr_id]['waiting_for_get_up_time'] = False
+    if time.time() - USERS[usr_id]['last_usage'] > CRITICAL_LAST_USAGE_TIME:
+        greeting_to_unseen_user(bot.message)
+
+    USERS[usr_id]['show_set_group_notice'] = False
+
+    time.sleep(SLEEP_TIME)
+    bot.message.reply_text('Успешно')
+
+    USERS[usr_id]['last_usage'] = time.time()
+    write_users()
+
 
 def reply(bot, update): # ответ на обычное сообщение
     global USERS
@@ -913,8 +989,9 @@ def whensmoketime(bot, update): #когда там перекур
     pair_num = 0
 
     if USERS[usr_id]['group'] == '' or today_pairs_nums == None:
-        time.sleep(SLEEP_TIME)
-        bot.message.reply_text('(Кстати, ты можешь указать свою группу при помощи команды /set_group [группа] и я буду показывать тебе более точную информацию о перекурах)')
+        if USERS[usr_id]['show_set_group_notice']:
+            time.sleep(SLEEP_TIME)
+            bot.message.reply_text('(Кстати, ты можешь указать свою группу при помощи команды /set_group [группа] и я буду показывать тебе более точную информацию о перекурах)')
         today_pairs_nums = PAIRS_TIME.keys()
 
     for p_num in today_pairs_nums:
@@ -1002,8 +1079,9 @@ def whentogetup(bot, update):
         if tomorrow_pairs_nums == None:
             time.sleep(SLEEP_TIME)
             bot.message.reply_text('Я не знаю, какие пары у тебя завтра. Похуй, вставай в {}'.format(base_get_up_time.strftime("%H:%M")))
-            time.sleep(SLEEP_TIME)
-            bot.message.reply_text('(Если хочешь, чтобы я знала, когда у тебя пары, укажи свою группу через команду /set_group [группа])')
+            if USERS[usr_id]['show_set_group_notice']:
+                time.sleep(SLEEP_TIME)
+                bot.message.reply_text('(Если хочешь, чтобы я знала, когда у тебя пары, укажи свою группу через команду /set_group [группа])')
         elif len(tomorrow_pairs_nums) == 0:
             time.sleep(SLEEP_TIME)
             bot.message.reply_text('Завтра нет пар!!')
@@ -1092,6 +1170,8 @@ def main(): # БАЗА
     bot.dispatcher.add_handler(CommandHandler('stat', stat))
     bot.dispatcher.add_handler(CommandHandler('exec', exec_cmd))
     bot.dispatcher.add_handler(CommandHandler('set_group', set_group_cmd))
+    bot.dispatcher.add_handler(CommandHandler('set_wakeup_time', set_wakeup_time_cmd))
+    bot.dispatcher.add_handler(CommandHandler('disable_groups', disable_groups_cmd))
     bot.dispatcher.add_handler(MessageHandler(Filters.regex('Кто я сегодня?'), whoami))
     bot.dispatcher.add_handler(MessageHandler(Filters.regex('Скинь ножки'), sendlegs))
     bot.dispatcher.add_handler(MessageHandler(Filters.regex('Рандомчик'), dorandom))
