@@ -344,6 +344,18 @@ def get_pairs_nums(msg, dt):
 def get_today_pairs_nums(msg):
     return get_pairs_nums(msg, datetime.datetime.today())
 
+def get_nearest_pair_time(msg, dt): # dt ОБЯЗАТЕЛЬНО типа datetime.date, иначе пизды получишь
+    delta = datetime.timedelta(days=1)
+    i = 0
+    while dt.month == (dt + delta * i).month:
+        pairs = get_pairs_nums(msg, dt)
+        if pairs != None and len(pairs) > 0:
+            for p in pairs:
+                if datetime.datetime.now() < datetime.datetime.combine(dt + delta * i, PAIRS_TIME[pairs[0]]['start']):
+                    return datetime.datetime.combine(dt + delta * i, PAIRS_TIME[pairs[0]]['start'])
+        i += 1
+    return None
+
 def norm_word(x): # приводит слово к начальной форме
     global MORPH
     p = MORPH.parse(x)[0]
@@ -1050,6 +1062,11 @@ def whensmoketime(bot, update): #когда там перекур
 
         update.bot.send_photo(chat_id=bot.message.chat.id, photo=open('SMOKETIME/notyet.png', 'rb'))
 
+        nearest_pair = get_nearest_pair_time(bot.message, datetime.date.today())
+        if nearest_pair != None:
+            time.sleep(SLEEP_TIME)
+            bot.message.reply_text('Ближайшая пара {}'.format(nearest_pair.strftime("%d.%m в %H:%M")))
+
     USERS[usr_id]['last_usage'] = time.time()
     write_users()    
 
@@ -1085,6 +1102,11 @@ def whentogetup(bot, update):
         elif len(tomorrow_pairs_nums) == 0:
             time.sleep(SLEEP_TIME)
             bot.message.reply_text('Завтра нет пар!!')
+
+            nearest_pair = get_nearest_pair_time(bot.message, datetime.date.today())
+            if nearest_pair != None:
+                time.sleep(SLEEP_TIME)
+                bot.message.reply_text('Ближайшая пара {}'.format(nearest_pair.strftime("%d.%m в %H:%M")))
         else:
             first_pair = min(tomorrow_pairs_nums)
             get_up_time = datetime.datetime.combine(datetime.date.today(), PAIRS_TIME[first_pair]['start']) - datetime.datetime.combine(datetime.date.today(), PAIRS_TIME[1]['start'])
