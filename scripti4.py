@@ -244,10 +244,13 @@ def get_id(bot):
 def get_id_bymsg(msg):
     return str(msg.from_user['id'])
 
-def update_timetable(msg):
+def update_timetable(msg, force=False):
     usr_id = get_id_bymsg(msg)
 
-    if USERS[usr_id]['last_timetable_update'] != None and time.time() - USERS[usr_id]['last_timetable_update'] < CRITICAL_LAST_TIMETABLE_UPDATE_TIME:
+    if not force and (USERS[usr_id]['group'] == None or USERS[usr_id]['group'] == ''):
+        return 
+
+    if not force and USERS[usr_id]['last_timetable_update'] != None and time.time() - USERS[usr_id]['last_timetable_update'] < CRITICAL_LAST_TIMETABLE_UPDATE_TIME:
         return
     
     workbook = xlrd.open_workbook('IIT-1-kurs_27.09.2022.xlsx', on_demand=True)
@@ -522,7 +525,7 @@ def set_group_cmd(bot, update):
 
     USERS[usr_id]['group'] = bot.message.text[11:].strip()
 
-    update_timetable(bot.message)
+    update_timetable(bot.message, force=True)
     bot.message.reply_text(str(USERS[usr_id]['group']) + '\nПринято!')
     #bot.message.reply_text(str(USERS[usr_id]['timetable']))
 
