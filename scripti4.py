@@ -436,7 +436,7 @@ def get_stat(usr_id): # выдаёт пользователю стату
     return res
 
 def get_admin_stat(usr_id): # выдаёт админам личные данные пользователей
-    if USERS[usr_id] is not None:
+    if USERS[usr_id]['username'] is not None:
         res = 'username: @' + USERS[usr_id]['username'] + '\n'
     else:
         res = 'username: NULL' + '\n'
