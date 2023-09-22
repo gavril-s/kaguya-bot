@@ -275,7 +275,7 @@ def update_timetable(msg, force=False):
     if not force and USERS[usr_id]['last_timetable_update'] != None and time.time() - USERS[usr_id]['last_timetable_update'] < CRITICAL_LAST_TIMETABLE_UPDATE_TIME:
         return
     
-    workbook = xlrd.open_workbook('IIT-1-kurs_27.09.2022.xlsx', on_demand=True)
+    workbook = xlrd.open_workbook('mirea_schedule_2.xlsx', on_demand=True)
 
     for sheet_num in range(len(workbook.sheet_names())):
         worksheet = workbook.sheet_by_index(sheet_num)
