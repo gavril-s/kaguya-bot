@@ -123,6 +123,7 @@ PAIRS_TIME = {
 
 ADMINS_ID = ['441875037', '635725092'] # админы - Тимка и Ганька
 QUIT_TEXT = 'Вырубайся нахуй'
+REBOOT_TEXT = 'Обновляйся нахуй'
 
 MOOD_FADING = 0.6816901138162094 # коэффициент затухания настроения
 MESSAGE_RATING_FADING = 0.6 # коэффициент затухания рейтинга сообщения
@@ -797,6 +798,10 @@ def reply(bot, update): # ответ на обычное сообщение
     USERS[usr_id]['msg_count'] += 1
     if bot.message.text == QUIT_TEXT and usr_id in ADMINS_ID:
         quit()
+    if bot.message.text == REBOOT_TEXT and usr_id in ADMINS_ID:
+        os.system('git pull')
+        os.system('sudo systemctl restart kaguya')
+        bot.message.reply_text('Готово')
     if USERS[usr_id]['waiting_for_city']:
         USERS[usr_id]['city'] = bot.message.text
         USERS[usr_id]['waiting_for_city'] = False
