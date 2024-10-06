@@ -327,7 +327,7 @@ def update_timetable(msg, force=False):
                         row2 = clear_timetable_row(
                             worksheet.cell_value(row + 1, base_column))
                         USERS[usr_id]['timetable'][day].append((row1, row2))
-                    base_row += 12
+                    base_row += 14
                 break_flag = True
                 break
     workbook.release_resources()
@@ -344,6 +344,8 @@ def clear_timetable_row(row):
         new_row = new_row.replace(i, '')
     return new_row.strip()
 
+# ЕБАНОЕ РТУ МИРЭА НЕ МОГУТ НОРМАЛЬНО ОТСЧЕТ НЕДЕЛЬ ВЕСТИ ТВАРИ ПИДОРЫ ХУЕСОСЫ БЕЗМАМНЫЕ
+
 
 def get_pairs(msg, dt):
     usr_id = get_id_bymsg(msg)
@@ -356,7 +358,7 @@ def get_pairs(msg, dt):
     pairs = USERS[usr_id]['timetable'][weekday]
     weeknum = dt.isocalendar()[1] - \
         datetime.date(dt.year, 9, 1).isocalendar()[1] + 1
-    if weeknum % 2 == 1:
+    if weeknum % 2 == 0:
         return [i[0] for i in pairs]
     else:
         return [i[1] for i in pairs]
