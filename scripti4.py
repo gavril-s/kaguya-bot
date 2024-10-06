@@ -262,7 +262,8 @@ def register_user(msg):  # пажилая регистрация...
         'base_get_up_time_minute': None,
         'waiting_for_get_up_time': False,
         'show_set_group_notice': True,
-        'pair_skips': []
+        'pair_visit': [],
+        'total_pairs': []
     }
 
 
@@ -324,9 +325,14 @@ def update_timetable(msg, force=False):
                     for row in range(base_row, base_row + 12, 2):
                         row1 = clear_timetable_row(
                             worksheet.cell_value(row, base_column))
+                        row1_type = " ("+clear_timetable_row(
+                            worksheet.cell_value(row, base_column+1))+")"
                         row2 = clear_timetable_row(
                             worksheet.cell_value(row + 1, base_column))
-                        USERS[usr_id]['timetable'][day].append((row1, row2))
+                        row2_type = " ("+clear_timetable_row(
+                            worksheet.cell_value(row + 1, base_column+1))+")"
+                        USERS[usr_id]['timetable'][day].append(
+                            (row1+row1_type, row2+row2_type))
                     base_row += 14
                 break_flag = True
                 break
@@ -1421,7 +1427,6 @@ def whentogetup(bot, update):
             time.sleep(SLEEP_TIME)
             bot.message.reply_text('Вставай в {}'.format(
                 get_up_time.strftime("%H:%M")))
-
     USERS[usr_id]['last_usage'] = time.time()
     write_users()
 
