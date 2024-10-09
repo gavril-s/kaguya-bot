@@ -1842,7 +1842,7 @@ def send_msg_smoke_time(update: Update, context: CallbackContext):
             chat_id=usr_id, text='Пришли username пользователя.')
         USERS[usr_id]['waiting_for_smoke_username'] = True
     else:
-        friend_username = USERS[usr_id]['smoke_username']
+        friend_username = USERS[usr_id]['smoke_username'].lstrip('@')
         user_username = USERS[usr_id]['username']
         username_id = find_user_by_username(friend_username)
 
