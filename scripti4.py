@@ -9,7 +9,7 @@
 #################################################
 
 # база
-from telegram.ext import Updater, CommandHandler, Filters, MessageHandler, CallbackQueryHandler
+from telegram.ext import Updater, CommandHandler, Filters, MessageHandler, CallbackQueryHandler, CallbackContext
 from telegram import ReplyKeyboardMarkup, InlineKeyboardMarkup, InlineKeyboardButton
 import telegram
 import telegram.ext
@@ -40,6 +40,10 @@ import io
 
 # секретная функция для админов
 import os
+
+# для проверки посещаемости
+import threading
+import schedule
 
 WORDS = dict()    # словарь с эмоциональными окрасками
 HOLIDAYS = dict()  # праздники на каждый день
@@ -172,7 +176,12 @@ def log(msg):
     # print('USER: ', msg.from_user['first_name'])
     # print('MOOD: ', USERS[get_id_bymsg(msg)]['mood'])
     # print('GROUP: ', USERS[get_id_bymsg(msg)]['group'])
-    # print('timetable: ', USERS[get_id_bymsg(msg)]['timetable'])
+    # print('city: ', USERS[get_id_bymsg(msg)]['city'])
+    # print('id: ', get_id_bymsg(msg))
+    # print(str(635725092) == get_id_bymsg(msg))
+    # print('show_pair_stats: ', USERS[get_id_bymsg(msg)]['show_pair_stats'])
+    # print('total_pairs: ', USERS[get_id_bymsg(msg)]['total_pairs'])
+    # print('last_pair: ', was_pair_minutes_ago(get_id_bymsg(msg), 60))
     # print('-------------------------')
     return
 
@@ -262,16 +271,19 @@ def register_user(msg):  # пажилая регистрация...
         'base_get_up_time_minute': None,
         'waiting_for_get_up_time': False,
         'show_set_group_notice': True,
-        'pair_visit': [],
-        'total_pairs': []
+        'show_pair_stats': False,
+        'pair_visit': {},
+        'total_pairs': {},
+        'last_pair': None,
+        'is_even_week': None
     }
 
 
-def check_registration(bot):
-    usr_id = get_id(bot)
-    if usr_id not in USERS:
-        register_user(msg)  # тут хуйня написана, но трогать лень
-        # print('NEW USER: ', USERS[usr_id])
+# def check_registration(bot):
+#    usr_id = get_id(bot)
+#    if usr_id not in USERS:
+#        register_user(msg)  # тут хуйня написана, но трогать лень
+#        # print('NEW USER: ', USERS[usr_id])
 
 
 def check_registration_bymsg(msg):
@@ -301,7 +313,6 @@ def get_id_bymsg(msg):
 
 def update_timetable(msg, force=False):
     usr_id = get_id_bymsg(msg)
-
     if not force and (USERS[usr_id]['group'] == None or USERS[usr_id]['group'] == ''):
         return
 
@@ -519,6 +530,22 @@ def sms(bot, update):  # отвечает на /start
     usr_id = get_id_bymsg(bot.message)
     check_registration_bymsg(bot.message)
     log(bot.message)
+    # Запускаем расписание для отправки сообщений
+    schedule.every().day.at("10:35").do(
+        send_scheduled_message, bot=bot, update=update)
+    schedule.every().day.at("12:15").do(
+        send_scheduled_message, bot=bot, update=update)
+    schedule.every().day.at("14:15").do(
+        send_scheduled_message, bot=bot, update=update)
+    schedule.every().day.at("15:55").do(
+        send_scheduled_message, bot=bot, update=update)
+    schedule.every().day.at("17:55").do(
+        send_scheduled_message, bot=bot, update=update)
+    schedule.every().day.at("19:35").do(
+        send_scheduled_message, bot=bot, update=update)
+
+    # Запускаем поток для проверки расписания
+    threading.Thread(target=schedule_checker, daemon=True).start()
     USERS[usr_id]['msg_count'] += 1
     if USERS[usr_id]['waiting_for_city']:
         USERS[usr_id]['waiting_for_city'] = False
@@ -527,7 +554,7 @@ def sms(bot, update):  # отвечает на /start
     if USERS[usr_id]['waiting_for_get_up_time']:
         USERS[usr_id]['waiting_for_get_up_time'] = False
     keyboard = ReplyKeyboardMarkup([['Скинь ножки', 'Какой сегодня день?'], ['Кто я сегодня?', 'Сколько до перекура?'], [
-                                   'Какая погода сейчас?', 'Рандомчик'], ['Во сколько мне завтра вставать?']], resize_keyboard=True)
+                                   'Какая погода сейчас?', 'Рандомчик'], ['Во сколько мне завтра вставать?', 'Покажи статистику пар']], resize_keyboard=True)
     bot.message.reply_text('Охае, {}!'.format(bot.message.chat.first_name))
     time.sleep(SLEEP_TIME)
     bot.message.reply_text(
@@ -625,8 +652,16 @@ def set_group_cmd(bot, update):
 
     update_timetable(bot.message, force=True)
     bot.message.reply_text(str(USERS[usr_id]['group']) + '\nПринято!')
+    time.sleep(SLEEP_TIME)
+    bot.message.reply_text(
+        'Кстати теперь я буду вести учет посещенных тобой пар')
+    time.sleep(SLEEP_TIME)
+    bot.message.reply_text(
+        'Пришли /pair_stats_on, чтобы я начала вести твою статистику')
+    time.sleep(SLEEP_TIME)
+    bot.message.reply_text(
+        'Если надоест - пришли /pair_stats_off, чтобы я не писала тебе про посещение пар')
     # bot.message.reply_text(str(USERS[usr_id]['timetable']))
-
     USERS[usr_id]['last_usage'] = time.time()
     write_users()
 
@@ -693,6 +728,81 @@ def disable_groups_cmd(bot, update):
 
     time.sleep(SLEEP_TIME)
     bot.message.reply_text('Успешно')
+
+    USERS[usr_id]['last_usage'] = time.time()
+    write_users()
+
+
+def disable_pair_stats_cmd(bot, update):
+    global USERS
+    usr_id = get_id_bymsg(bot.message)
+    check_registration_bymsg(bot.message)
+    log(bot.message)
+    USERS[usr_id]['msg_count'] += 1
+    if USERS[usr_id]['waiting_for_city']:
+        USERS[usr_id]['waiting_for_city'] = False
+    if USERS[usr_id]['waiting_for_random']:
+        USERS[usr_id]['waiting_for_random'] = False
+    if USERS[usr_id]['waiting_for_get_up_time']:
+        USERS[usr_id]['waiting_for_get_up_time'] = False
+    if time.time() - USERS[usr_id]['last_usage'] > CRITICAL_LAST_USAGE_TIME:
+        greeting_to_unseen_user(bot.message)
+
+    USERS[usr_id]['show_pair_stats'] = False
+
+    time.sleep(SLEEP_TIME)
+    bot.message.reply_text('Очень жаль((')
+    log(bot.message)
+
+    USERS[usr_id]['last_usage'] = time.time()
+    write_users()
+
+
+def initialize_pair_stats_cmd(bot, update):
+    global USERS
+    usr_id = get_id_bymsg(bot.message)
+    check_registration_bymsg(bot.message)
+    log(bot.message)
+    USERS[usr_id]['msg_count'] += 1
+    if USERS[usr_id]['waiting_for_city']:
+        USERS[usr_id]['waiting_for_city'] = False
+    if USERS[usr_id]['waiting_for_random']:
+        USERS[usr_id]['waiting_for_random'] = False
+    if USERS[usr_id]['waiting_for_get_up_time']:
+        USERS[usr_id]['waiting_for_get_up_time'] = False
+    if time.time() - USERS[usr_id]['last_usage'] > CRITICAL_LAST_USAGE_TIME:
+        greeting_to_unseen_user(bot.message)
+
+    initialize_pair_stats(bot.message)
+    bot.message.reply_text('Готово')
+
+    log(bot.message)
+
+    USERS[usr_id]['last_usage'] = time.time()
+    write_users()
+
+
+def enable_pair_stats_cmd(bot, update):
+    global USERS
+    usr_id = get_id_bymsg(bot.message)
+    check_registration_bymsg(bot.message)
+    log(bot.message)
+    USERS[usr_id]['msg_count'] += 1
+    if USERS[usr_id]['waiting_for_city']:
+        USERS[usr_id]['waiting_for_city'] = False
+    if USERS[usr_id]['waiting_for_random']:
+        USERS[usr_id]['waiting_for_random'] = False
+    if USERS[usr_id]['waiting_for_get_up_time']:
+        USERS[usr_id]['waiting_for_get_up_time'] = False
+    if time.time() - USERS[usr_id]['last_usage'] > CRITICAL_LAST_USAGE_TIME:
+        greeting_to_unseen_user(bot.message)
+
+    USERS[usr_id]['show_pair_stats'] = True
+
+    time.sleep(SLEEP_TIME)
+    bot.message.reply_text(
+        'Отлично, если хочешь сбросить статистику по парам - пришли /initialize_pair_stats')
+    log(bot.message)
 
     USERS[usr_id]['last_usage'] = time.time()
     write_users()
@@ -1501,6 +1611,153 @@ def sendweather_handler(bot, update):
     sendweather(bot, update)
 
 
+def get_pair_stats(usr_id):
+    pair_visit_stats = USERS[usr_id].get('pair_visit', {})
+    total_pairs_stats = USERS[usr_id].get('total_pairs', {})
+    if not pair_visit_stats or not total_pairs_stats:
+        return None
+    total_visited = 0
+    total_conducted = 0
+    stats_text = "Я все посчитала\n📊 Статистика посещаемости пар:\n\n"
+    for pair_name in total_pairs_stats:
+        visit_count = pair_visit_stats.get(pair_name, 0)
+        total_count = total_pairs_stats.get(pair_name, 0)
+        missed_count = total_count - visit_count
+        missed_percent = (missed_count / total_count) * \
+            100 if total_count > 0 else 0
+        total_visited += visit_count
+        total_conducted += total_count
+
+        stats_text += f"📝 {pair_name}:\n"
+        stats_text += f"    Посещено: {visit_count}\n"
+        stats_text += f"    Проведено: {total_count}\n"
+        stats_text += f"    Проебано: {missed_count} ({missed_percent:.2f}%)\n\n"
+    if total_conducted > 0:
+        overall_missed = total_conducted - total_visited
+        overall_missed_percent = (overall_missed / total_conducted) * 100
+        stats_text += f"📊 Общая статистика:\n"
+        stats_text += f"    Всего посещено: {total_visited}\n"
+        stats_text += f"    Всего проведено: {total_conducted}\n"
+        stats_text += f"    Всего проебано: {overall_missed} ({overall_missed_percent:.2f}%)\n"
+    else:
+        stats_text = "    Нет данных о проведенных парах.\n"
+    return stats_text
+
+
+def send_pair_stats(bot, update):
+    global USERS
+    usr_id = get_id_bymsg(bot.message)
+    check_registration_bymsg(bot.message)
+    log(bot.message)
+    USERS[usr_id]['msg_count'] += 1
+    if USERS[usr_id]['waiting_for_city']:
+        USERS[usr_id]['waiting_for_city'] = False
+    if USERS[usr_id]['waiting_for_random']:
+        USERS[usr_id]['waiting_for_random'] = False
+    if USERS[usr_id]['waiting_for_get_up_time']:
+        USERS[usr_id]['waiting_for_get_up_time'] = False
+    if time.time() - USERS[usr_id]['last_usage'] > CRITICAL_LAST_USAGE_TIME:
+        greeting_to_unseen_user(bot.message)
+
+    time.sleep(SLEEP_TIME)
+    bot.message.reply_text('Дай-ка подумать...')
+    time.sleep(SLEEP_TIME)
+    stats = get_pair_stats(usr_id)
+    if not stats:
+        text = "Да я понятия не имею"
+    else:
+        text = stats
+    bot.message.reply_text(stats)
+
+
+def initialize_pair_stats(msg):
+    usr_id = get_id_bymsg(msg)
+    if 'pair_visit' not in USERS[usr_id]:
+        USERS[usr_id]['pair_visit'] = {}
+    if 'total_pairs' not in USERS[usr_id]:
+        USERS[usr_id]['total_pairs'] = {}
+    for day, pairs in USERS[usr_id]['timetable'].items():
+        for pair in pairs:
+            pair_name = pair[0].strip()
+            if not pair_name or pair_name == '()':
+                continue
+            if pair_name not in USERS[usr_id]['pair_visit']:
+                USERS[usr_id]['pair_visit'][pair_name] = 0
+            if pair_name not in USERS[usr_id]['total_pairs']:
+                USERS[usr_id]['total_pairs'][pair_name] = 0
+
+
+def was_pair_minutes_ago(usr_id, minutes_ago=10):
+    current_time = datetime.datetime.now()
+    time_n_minutes_ago = current_time - \
+        datetime.timedelta(minutes=minutes_ago+1)
+
+    current_day = time_n_minutes_ago.strftime(
+        '%A')
+
+    if current_day in USERS[usr_id]['timetable']:
+        for pair_number, times in PAIRS_TIME.items():
+            if (times['start'] <= time_n_minutes_ago.time() <= times['end']):
+                return USERS[usr_id]['timetable'][current_day][pair_number - 1][0]
+
+    return False
+
+
+def get_yes_no_keyboard():
+    keyboard = [
+        [
+            InlineKeyboardButton("Да", callback_data='yes'),
+            InlineKeyboardButton("Нет", callback_data='no'),
+        ]
+    ]
+    return InlineKeyboardMarkup(keyboard)
+
+# Функция для отправки запланированных сообщений с кнопками
+
+
+def send_scheduled_message(bot, update):
+    usr_id = get_id_bymsg(bot.message)
+    pair_name = was_pair_minutes_ago(usr_id, 10)
+    if pair_name and USERS[usr_id]['show_pair_stats']:
+        USERS[usr_id]['last_pair'] = pair_name
+        bot.message.reply_text(
+            f'Ты был на паре {pair_name}?',
+            reply_markup=get_yes_no_keyboard()
+        )
+# Проверка расписания
+
+
+def schedule_checker():
+    while True:
+        schedule.run_pending()
+        time.sleep(1)
+
+
+def handle_pair_response(bot, update):
+    query = bot.callback_query
+    usr_id = str(query.from_user.id)
+    pair_name = USERS[usr_id]['last_pair']
+
+    if query.data == 'yes':
+        update_pair_stats(usr_id, pair_name, True)
+    elif query.data == 'no':
+        update_pair_stats(usr_id, pair_name, False)
+
+    query.answer()
+    USERS[usr_id]['last_pair'] = ""
+    if pair_name:
+        del USERS[usr_id]['last_pair']
+
+    query.edit_message_text(text='Понятно')
+
+
+def update_pair_stats(usr_id, pair_name, was_on_pair):
+    if was_on_pair:
+        USERS[usr_id]['pair_visit'][pair_name] += 1
+
+    USERS[usr_id]['total_pairs'][pair_name] += 1
+
+
 def main():  # БАЗА
     read_words()
     read_holidays()
@@ -1517,6 +1774,12 @@ def main():  # БАЗА
         'set_wakeup_time', set_wakeup_time_cmd))
     bot.dispatcher.add_handler(CommandHandler(
         'disable_groups', disable_groups_cmd))
+    bot.dispatcher.add_handler(CommandHandler(
+        'pair_stats_on', enable_pair_stats_cmd))
+    bot.dispatcher.add_handler(CommandHandler(
+        'pair_stats_off', disable_pair_stats_cmd))
+    bot.dispatcher.add_handler(CommandHandler(
+        'initialize_pair_stats', initialize_pair_stats_cmd))
     bot.dispatcher.add_handler(CommandHandler('add_skip', add_skip_cmd))
     bot.dispatcher.add_handler(CommandHandler('add_skips', add_skips_cmd))
     bot.dispatcher.add_handler(CommandHandler('skips', skips_cmd))
@@ -1535,10 +1798,13 @@ def main():  # БАЗА
     bot.dispatcher.add_handler(MessageHandler(
         Filters.regex('Какая погода сейчас?'), sendweather_handler))
     bot.dispatcher.add_handler(MessageHandler(
+        Filters.regex('Покажи статистику пар'), send_pair_stats))
+    bot.dispatcher.add_handler(MessageHandler(
         Filters.regex('Погода в другом городе'), change_weather_city))
     bot.dispatcher.add_handler(CallbackQueryHandler(
         change_weather_city, pattern='^Погода в другом городе$'))
     bot.dispatcher.add_handler(MessageHandler(Filters.text, reply))
+    bot.dispatcher.add_handler(CallbackQueryHandler(handle_pair_response))
 
     bot.start_polling()
     bot.idle()
