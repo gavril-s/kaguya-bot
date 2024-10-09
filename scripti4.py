@@ -10,7 +10,7 @@
 
 # база
 from telegram.ext import Updater, CommandHandler, Filters, MessageHandler, CallbackQueryHandler, CallbackContext
-from telegram import ReplyKeyboardMarkup, InlineKeyboardMarkup, InlineKeyboardButton
+from telegram import ReplyKeyboardMarkup, InlineKeyboardMarkup, InlineKeyboardButton, Update
 import telegram
 import telegram.ext
 
@@ -275,7 +275,9 @@ def register_user(msg):  # пажилая регистрация...
         'pair_visit': {},
         'total_pairs': {},
         'last_pair': None,
-        'is_even_week': None
+        'is_even_week': None,
+        'waiting_for_smoke_username': False,
+        'smoke_username': None
     }
 
 
@@ -553,8 +555,10 @@ def sms(bot, update):  # отвечает на /start
         USERS[usr_id]['waiting_for_random'] = False
     if USERS[usr_id]['waiting_for_get_up_time']:
         USERS[usr_id]['waiting_for_get_up_time'] = False
+    if USERS[usr_id]['waiting_for_smoke_username']:
+        USERS[usr_id]['waiting_for_smoke_username'] = False
     keyboard = ReplyKeyboardMarkup([['Скинь ножки', 'Какой сегодня день?'], ['Кто я сегодня?', 'Сколько до перекура?'], [
-                                   'Какая погода сейчас?', 'Рандомчик'], ['Во сколько мне завтра вставать?', 'Покажи статистику пар']], resize_keyboard=True)
+                                   'Какая погода сейчас?', 'Рандомчик'], ['Во сколько мне завтра вставать?', 'Покажи статистику пар'], ['Позови на перекур']], resize_keyboard=True)
     bot.message.reply_text('Охае, {}!'.format(bot.message.chat.first_name))
     time.sleep(SLEEP_TIME)
     bot.message.reply_text(
@@ -576,6 +580,8 @@ def help_user(bot, update):  # отвечает на /help
         USERS[usr_id]['waiting_for_random'] = False
     if USERS[usr_id]['waiting_for_get_up_time']:
         USERS[usr_id]['waiting_for_get_up_time'] = False
+    if USERS[usr_id]['waiting_for_smoke_username']:
+        USERS[usr_id]['waiting_for_smoke_username'] = False
     if time.time() - USERS[usr_id]['last_usage'] > CRITICAL_LAST_USAGE_TIME:
         greeting_to_unseen_user(bot.message)
     bot.message.reply_text(HELP_TEXT)
@@ -595,6 +601,8 @@ def stat(bot, update):  # отвечает на /stat
         USERS[usr_id]['waiting_for_random'] = False
     if USERS[usr_id]['waiting_for_get_up_time']:
         USERS[usr_id]['waiting_for_get_up_time'] = False
+    if USERS[usr_id]['waiting_for_smoke_username']:
+        USERS[usr_id]['waiting_for_smoke_username'] = False
     if time.time() - USERS[usr_id]['last_usage'] > CRITICAL_LAST_USAGE_TIME:
         greeting_to_unseen_user(bot.message)
 
@@ -619,6 +627,8 @@ def exec_cmd(bot, update):
         USERS[usr_id]['waiting_for_random'] = False
     if USERS[usr_id]['waiting_for_get_up_time']:
         USERS[usr_id]['waiting_for_get_up_time'] = False
+    if USERS[usr_id]['waiting_for_smoke_username']:
+        USERS[usr_id]['waiting_for_smoke_username'] = False
     if time.time() - USERS[usr_id]['last_usage'] > CRITICAL_LAST_USAGE_TIME:
         greeting_to_unseen_user(bot.message)
 
@@ -645,6 +655,8 @@ def set_group_cmd(bot, update):
         USERS[usr_id]['waiting_for_random'] = False
     if USERS[usr_id]['waiting_for_get_up_time']:
         USERS[usr_id]['waiting_for_get_up_time'] = False
+    if USERS[usr_id]['waiting_for_smoke_username']:
+        USERS[usr_id]['waiting_for_smoke_username'] = False
     if time.time() - USERS[usr_id]['last_usage'] > CRITICAL_LAST_USAGE_TIME:
         greeting_to_unseen_user(bot.message)
 
@@ -678,6 +690,8 @@ def set_wakeup_time_cmd(bot, update):
         USERS[usr_id]['waiting_for_random'] = False
     if USERS[usr_id]['waiting_for_get_up_time']:
         USERS[usr_id]['waiting_for_get_up_time'] = False
+    if USERS[usr_id]['waiting_for_smoke_username']:
+        USERS[usr_id]['waiting_for_smoke_username'] = False
     if time.time() - USERS[usr_id]['last_usage'] > CRITICAL_LAST_USAGE_TIME:
         greeting_to_unseen_user(bot.message)
 
@@ -721,6 +735,8 @@ def disable_groups_cmd(bot, update):
         USERS[usr_id]['waiting_for_random'] = False
     if USERS[usr_id]['waiting_for_get_up_time']:
         USERS[usr_id]['waiting_for_get_up_time'] = False
+    if USERS[usr_id]['waiting_for_smoke_username']:
+        USERS[usr_id]['waiting_for_smoke_username'] = False
     if time.time() - USERS[usr_id]['last_usage'] > CRITICAL_LAST_USAGE_TIME:
         greeting_to_unseen_user(bot.message)
 
@@ -745,6 +761,8 @@ def disable_pair_stats_cmd(bot, update):
         USERS[usr_id]['waiting_for_random'] = False
     if USERS[usr_id]['waiting_for_get_up_time']:
         USERS[usr_id]['waiting_for_get_up_time'] = False
+    if USERS[usr_id]['waiting_for_smoke_username']:
+        USERS[usr_id]['waiting_for_smoke_username'] = False
     if time.time() - USERS[usr_id]['last_usage'] > CRITICAL_LAST_USAGE_TIME:
         greeting_to_unseen_user(bot.message)
 
@@ -770,6 +788,8 @@ def initialize_pair_stats_cmd(bot, update):
         USERS[usr_id]['waiting_for_random'] = False
     if USERS[usr_id]['waiting_for_get_up_time']:
         USERS[usr_id]['waiting_for_get_up_time'] = False
+    if USERS[usr_id]['waiting_for_smoke_username']:
+        USERS[usr_id]['waiting_for_smoke_username'] = False
     if time.time() - USERS[usr_id]['last_usage'] > CRITICAL_LAST_USAGE_TIME:
         greeting_to_unseen_user(bot.message)
 
@@ -794,6 +814,8 @@ def enable_pair_stats_cmd(bot, update):
         USERS[usr_id]['waiting_for_random'] = False
     if USERS[usr_id]['waiting_for_get_up_time']:
         USERS[usr_id]['waiting_for_get_up_time'] = False
+    if USERS[usr_id]['waiting_for_smoke_username']:
+        USERS[usr_id]['waiting_for_smoke_username'] = False
     if time.time() - USERS[usr_id]['last_usage'] > CRITICAL_LAST_USAGE_TIME:
         greeting_to_unseen_user(bot.message)
 
@@ -820,6 +842,8 @@ def add_skip_cmd(bot, update):
         USERS[usr_id]['waiting_for_random'] = False
     if USERS[usr_id]['waiting_for_get_up_time']:
         USERS[usr_id]['waiting_for_get_up_time'] = False
+    if USERS[usr_id]['waiting_for_smoke_username']:
+        USERS[usr_id]['waiting_for_smoke_username'] = False
     if time.time() - USERS[usr_id]['last_usage'] > CRITICAL_LAST_USAGE_TIME:
         greeting_to_unseen_user(bot.message)
 
@@ -898,6 +922,8 @@ def add_skips_cmd(bot, update):
         USERS[usr_id]['waiting_for_random'] = False
     if USERS[usr_id]['waiting_for_get_up_time']:
         USERS[usr_id]['waiting_for_get_up_time'] = False
+    if USERS[usr_id]['waiting_for_smoke_username']:
+        USERS[usr_id]['waiting_for_smoke_username'] = False
     if time.time() - USERS[usr_id]['last_usage'] > CRITICAL_LAST_USAGE_TIME:
         greeting_to_unseen_user(bot.message)
 
@@ -963,6 +989,8 @@ def skips_cmd(bot, update):
         USERS[usr_id]['waiting_for_random'] = False
     if USERS[usr_id]['waiting_for_get_up_time']:
         USERS[usr_id]['waiting_for_get_up_time'] = False
+    if USERS[usr_id]['waiting_for_smoke_username']:
+        USERS[usr_id]['waiting_for_smoke_username'] = False
     if time.time() - USERS[usr_id]['last_usage'] > CRITICAL_LAST_USAGE_TIME:
         greeting_to_unseen_user(bot.message)
 
@@ -998,6 +1026,14 @@ def reply(bot, update):  # ответ на обычное сообщение
             USERS[usr_id]['rand_max'] = -1
         USERS[usr_id]['waiting_for_random'] = False
         dorandom(bot, update)
+        return
+    if USERS[usr_id]['waiting_for_smoke_username']:
+        try:
+            USERS[usr_id]['smoke_username'] = str(bot.message.text)
+        except Exception:
+            USERS[usr_id]['smoke_username'] = None
+        USERS[usr_id]['waiting_for_smoke_username'] = False
+        send_msg_smoke_time(bot, update)
         return
     if USERS[usr_id]['waiting_for_get_up_time']:
         USERS[usr_id]['waiting_for_get_up_time'] = False
@@ -1220,6 +1256,8 @@ def whoami(bot, update):  # отвечает на "Кто я сегодня?"
         USERS[usr_id]['waiting_for_random'] = False
     if USERS[usr_id]['waiting_for_get_up_time']:
         USERS[usr_id]['waiting_for_get_up_time'] = False
+    if USERS[usr_id]['waiting_for_smoke_username']:
+        USERS[usr_id]['waiting_for_smoke_username'] = False
     if time.time() - USERS[usr_id]['last_usage'] > CRITICAL_LAST_USAGE_TIME:
         greeting_to_unseen_user(bot.message)
     if USERS[usr_id]['mood'] < 0:
@@ -1254,6 +1292,8 @@ def dorandom(bot, update):  # отвечает на "Рандомчик"
         USERS[usr_id]['waiting_for_random'] = False
     if USERS[usr_id]['waiting_for_get_up_time']:
         USERS[usr_id]['waiting_for_get_up_time'] = False
+    if USERS[usr_id]['waiting_for_smoke_username']:
+        USERS[usr_id]['waiting_for_smoke_username'] = False
     if time.time() - USERS[usr_id]['last_usage'] > CRITICAL_LAST_USAGE_TIME:
         greeting_to_unseen_user(bot.message)
 
@@ -1285,6 +1325,8 @@ def sendlegs(bot, update):  # отвечает на "Скинь ножки"
         USERS[usr_id]['waiting_for_random'] = False
     if USERS[usr_id]['waiting_for_get_up_time']:
         USERS[usr_id]['waiting_for_get_up_time'] = False
+    if USERS[usr_id]['waiting_for_smoke_username']:
+        USERS[usr_id]['waiting_for_smoke_username'] = False
     if time.time() - USERS[usr_id]['last_usage'] > CRITICAL_LAST_USAGE_TIME:
         greeting_to_unseen_user(bot.message)
     if USERS[usr_id]['mood'] < 0:
@@ -1327,6 +1369,8 @@ def sendday(bot, update):  # отвечает на "Какой сегодня д
         USERS[usr_id]['waiting_for_random'] = False
     if USERS[usr_id]['waiting_for_get_up_time']:
         USERS[usr_id]['waiting_for_get_up_time'] = False
+    if USERS[usr_id]['waiting_for_smoke_username']:
+        USERS[usr_id]['waiting_for_smoke_username'] = False
     if time.time() - USERS[usr_id]['last_usage'] > CRITICAL_LAST_USAGE_TIME:
         greeting_to_unseen_user(bot.message)
     bot.message.reply_text('Хммм, дай-ка подумать')
@@ -1375,6 +1419,8 @@ def whensmoketime(bot, update):  # когда там перекур
         USERS[usr_id]['waiting_for_random'] = False
     if USERS[usr_id]['waiting_for_get_up_time']:
         USERS[usr_id]['waiting_for_get_up_time'] = False
+    if USERS[usr_id]['waiting_for_smoke_username']:
+        USERS[usr_id]['waiting_for_smoke_username'] = False
     if time.time() - USERS[usr_id]['last_usage'] > CRITICAL_LAST_USAGE_TIME:
         greeting_to_unseen_user(bot.message)
 
@@ -1493,6 +1539,8 @@ def whentogetup(bot, update):
         USERS[usr_id]['waiting_for_random'] = False
     if USERS[usr_id]['waiting_for_get_up_time']:
         USERS[usr_id]['waiting_for_get_up_time'] = False
+    if USERS[usr_id]['waiting_for_smoke_username']:
+        USERS[usr_id]['waiting_for_smoke_username'] = False
     if time.time() - USERS[usr_id]['last_usage'] > CRITICAL_LAST_USAGE_TIME:
         greeting_to_unseen_user(bot.message)
 
@@ -1580,6 +1628,8 @@ def sendweather(bot, update):  # отправляет погоду
         USERS[usr_id]['waiting_for_random'] = False
     if USERS[usr_id]['waiting_for_get_up_time']:
         USERS[usr_id]['waiting_for_get_up_time'] = False
+    if USERS[usr_id]['waiting_for_smoke_username']:
+        USERS[usr_id]['waiting_for_smoke_username'] = False
     if time.time() - USERS[usr_id]['last_usage'] > CRITICAL_LAST_USAGE_TIME:
         try:
             greeting_to_unseen_user(bot.message)
@@ -1656,6 +1706,8 @@ def send_pair_stats(bot, update):
         USERS[usr_id]['waiting_for_random'] = False
     if USERS[usr_id]['waiting_for_get_up_time']:
         USERS[usr_id]['waiting_for_get_up_time'] = False
+    if USERS[usr_id]['waiting_for_smoke_username']:
+        USERS[usr_id]['waiting_for_smoke_username'] = False
     if time.time() - USERS[usr_id]['last_usage'] > CRITICAL_LAST_USAGE_TIME:
         greeting_to_unseen_user(bot.message)
 
@@ -1758,6 +1810,54 @@ def update_pair_stats(usr_id, pair_name, was_on_pair):
     USERS[usr_id]['total_pairs'][pair_name] += 1
 
 
+def find_user_by_username(username):
+    for user_id, user_data in USERS.items():
+        if user_data.get("username") == username:
+            return user_id
+    return None
+
+
+def send_msg_smoke_time(update: Update, context: CallbackContext):
+    global USERS
+    # используем update вместо bot.message
+    usr_id = get_id_bymsg(update.message)
+    check_registration_bymsg(update.message)
+    log(update.message)
+    USERS[usr_id]['msg_count'] += 1
+    if USERS[usr_id]['waiting_for_city']:
+        USERS[usr_id]['waiting_for_city'] = False
+    if USERS[usr_id]['waiting_for_random']:
+        USERS[usr_id]['waiting_for_random'] = False
+    if USERS[usr_id]['waiting_for_get_up_time']:
+        USERS[usr_id]['waiting_for_get_up_time'] = False
+    if USERS[usr_id]['waiting_for_smoke_username']:
+        USERS[usr_id]['waiting_for_smoke_username'] = False
+    if time.time() - USERS[usr_id]['last_usage'] > CRITICAL_LAST_USAGE_TIME:
+        greeting_to_unseen_user(update.message)
+
+    time.sleep(SLEEP_TIME)
+
+    if USERS[usr_id]['smoke_username'] is None:
+        context.bot.send_message(
+            chat_id=usr_id, text='Пришли username пользователя.')
+        USERS[usr_id]['waiting_for_smoke_username'] = True
+    else:
+        friend_username = USERS[usr_id]['smoke_username']
+        user_username = USERS[usr_id]['username']
+        username_id = find_user_by_username(friend_username)
+
+        if username_id is not None:
+            context.bot.send_message(chat_id=username_id,
+                                     text=f"@{user_username} зовет тебя на перекур!!!")
+            context.bot.send_message(chat_id=usr_id, text="Отправила")
+        else:
+            context.bot.send_message(chat_id=usr_id, text="Не знаю такого")
+        USERS[usr_id]['smoke_username'] = None
+
+    USERS[usr_id]['last_usage'] = time.time()
+    write_users()
+
+
 def main():  # БАЗА
     read_words()
     read_holidays()
@@ -1800,12 +1900,13 @@ def main():  # БАЗА
     bot.dispatcher.add_handler(MessageHandler(
         Filters.regex('Покажи статистику пар'), send_pair_stats))
     bot.dispatcher.add_handler(MessageHandler(
+        Filters.regex('Позови на перекур'), send_msg_smoke_time))
+    bot.dispatcher.add_handler(MessageHandler(
         Filters.regex('Погода в другом городе'), change_weather_city))
     bot.dispatcher.add_handler(CallbackQueryHandler(
         change_weather_city, pattern='^Погода в другом городе$'))
     bot.dispatcher.add_handler(MessageHandler(Filters.text, reply))
     bot.dispatcher.add_handler(CallbackQueryHandler(handle_pair_response))
-
     bot.start_polling()
     bot.idle()
 
