@@ -344,8 +344,12 @@ def update_timetable(msg, force=False):
                             worksheet.cell_value(row + 1, base_column))
                         row2_type = " ("+clear_timetable_row(
                             worksheet.cell_value(row + 1, base_column+1))+")"
+                        if row1 != '':
+                            row1 += row1_type
+                        if row2 != '':
+                            row2 += row2_type
                         USERS[usr_id]['timetable'][day].append(
-                            (row1+row1_type, row2+row2_type))
+                            (row1, row2))
                     base_row += 14
                 break_flag = True
                 break
@@ -1770,7 +1774,7 @@ def get_yes_no_keyboard():
 def send_scheduled_message(bot, update):
     usr_id = get_id_bymsg(bot.message)
     pair_name = was_pair_minutes_ago(usr_id, 10)
-    if pair_name != ' ()' and USERS[usr_id]['show_pair_stats']:
+    if pair_name != '' and USERS[usr_id]['show_pair_stats']:
         USERS[usr_id]['last_pair'] = pair_name
         bot.message.reply_text(
             f'Ты был на паре {pair_name}?',
