@@ -1750,7 +1750,7 @@ def was_pair_minutes_ago(usr_id, minutes_ago=10):
     if current_day in USERS[usr_id]['timetable']:
         for pair_number, times in PAIRS_TIME.items():
             if (times['start'] <= time_n_minutes_ago.time() <= times['end']):
-                return USERS[usr_id]['timetable'][current_day][pair_number - 1][0]
+                return USERS[usr_id]['timetable'][current_day][pair_number - 1][1]
 
     return False
 
@@ -1770,7 +1770,7 @@ def get_yes_no_keyboard():
 def send_scheduled_message(bot, update):
     usr_id = get_id_bymsg(bot.message)
     pair_name = was_pair_minutes_ago(usr_id, 10)
-    if pair_name and USERS[usr_id]['show_pair_stats']:
+    if pair_name != ' ()' and USERS[usr_id]['show_pair_stats']:
         USERS[usr_id]['last_pair'] = pair_name
         bot.message.reply_text(
             f'Ты был на паре {pair_name}?',
