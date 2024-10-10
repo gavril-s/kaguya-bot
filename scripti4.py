@@ -181,7 +181,7 @@ def log(msg):
     # print(str(635725092) == get_id_bymsg(msg))
     # print('show_pair_stats: ', USERS[get_id_bymsg(msg)]['show_pair_stats'])
     # print('total_pairs: ', USERS[get_id_bymsg(msg)]['total_pairs'])
-    # print('last_pair: ', was_pair_minutes_ago(get_id_bymsg(msg), 60))
+    # print('last_pair: ', USERS[get_id_bymsg(msg)]['last_pair'])
     # print('-------------------------')
     return
 
@@ -537,21 +537,19 @@ def sms(bot, update):  # отвечает на /start
     check_registration_bymsg(bot.message)
     log(bot.message)
     # Запускаем расписание для отправки сообщений
-    schedule.every().day.at("10:35").do(
+    schedule.every().day.at("10:35:01").do(
         send_scheduled_message, bot=bot, update=update)
-    schedule.every().day.at("12:15").do(
+    schedule.every().day.at("12:15:01").do(
         send_scheduled_message, bot=bot, update=update)
-    schedule.every().day.at("14:15").do(
+    schedule.every().day.at("14:15:01").do(
         send_scheduled_message, bot=bot, update=update)
-    schedule.every().day.at("15:55").do(
+    schedule.every().day.at("15:55:01").do(
         send_scheduled_message, bot=bot, update=update)
-    schedule.every().day.at("17:55").do(
+    schedule.every().day.at("17:55:01").do(
         send_scheduled_message, bot=bot, update=update)
-    schedule.every().day.at("19:35").do(
+    schedule.every().day.at("19:35:01").do(
         send_scheduled_message, bot=bot, update=update)
 
-    # Запускаем поток для проверки расписания
-    threading.Thread(target=schedule_checker, daemon=True).start()
     USERS[usr_id]['msg_count'] += 1
     if USERS[usr_id]['waiting_for_city']:
         USERS[usr_id]['waiting_for_city'] = False
@@ -1742,8 +1740,17 @@ def initialize_pair_stats(msg):
             if pair_name not in USERS[usr_id]['total_pairs']:
                 USERS[usr_id]['total_pairs'][pair_name] = 0
 
+            pair_name = pair[1].strip()
+            if not pair_name or pair_name == '()':
+                continue
+            if pair_name not in USERS[usr_id]['pair_visit']:
+                USERS[usr_id]['pair_visit'][pair_name] = 0
+            if pair_name not in USERS[usr_id]['total_pairs']:
+                USERS[usr_id]['total_pairs'][pair_name] = 0
+
 
 def was_pair_minutes_ago(usr_id, minutes_ago=10):
+    dt = datetime.datetime.today()
     current_time = datetime.datetime.now()
     time_n_minutes_ago = current_time - \
         datetime.timedelta(minutes=minutes_ago+1)
@@ -1754,7 +1761,12 @@ def was_pair_minutes_ago(usr_id, minutes_ago=10):
     if current_day in USERS[usr_id]['timetable']:
         for pair_number, times in PAIRS_TIME.items():
             if (times['start'] <= time_n_minutes_ago.time() <= times['end']):
-                return USERS[usr_id]['timetable'][current_day][pair_number - 1][1]
+                weeknum = dt.isocalendar(
+                )[1] - datetime.date(dt.year, 9, 1).isocalendar()[1] + 1
+                if weeknum % 2 == 0:
+                    return USERS[usr_id]['timetable'][current_day][pair_number - 1][0]
+                else:
+                    return USERS[usr_id]['timetable'][current_day][pair_number - 1][1]
 
     return False
 
@@ -1774,12 +1786,13 @@ def get_yes_no_keyboard():
 def send_scheduled_message(bot, update):
     usr_id = get_id_bymsg(bot.message)
     pair_name = was_pair_minutes_ago(usr_id, 10)
-    if pair_name != '' and USERS[usr_id]['show_pair_stats']:
-        USERS[usr_id]['last_pair'] = pair_name
-        bot.message.reply_text(
-            f'Ты был на паре {pair_name}?',
-            reply_markup=get_yes_no_keyboard()
-        )
+    if pair_name:
+        if pair_name != '' and USERS[usr_id]['show_pair_stats']:
+            USERS[usr_id]['last_pair'] = pair_name
+            bot.message.reply_text(
+                f'Ты был на паре {pair_name}?',
+                reply_markup=get_yes_no_keyboard()
+            )
 # Проверка расписания
 
 
@@ -1800,9 +1813,7 @@ def handle_pair_response(bot, update):
         update_pair_stats(usr_id, pair_name, False)
 
     query.answer()
-    USERS[usr_id]['last_pair'] = ""
-    if pair_name:
-        del USERS[usr_id]['last_pair']
+    USERS[usr_id]['last_pair'] = None
 
     query.edit_message_text(text='Понятно')
 
@@ -1911,6 +1922,9 @@ def main():  # БАЗА
         change_weather_city, pattern='^Погода в другом городе$'))
     bot.dispatcher.add_handler(MessageHandler(Filters.text, reply))
     bot.dispatcher.add_handler(CallbackQueryHandler(handle_pair_response))
+
+    # Запускаем поток для проверки расписания
+    threading.Thread(target=schedule_checker, daemon=True).start()
     bot.start_polling()
     bot.idle()
 
