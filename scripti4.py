@@ -44,6 +44,7 @@ import os
 # для проверки посещаемости
 import threading
 import schedule
+import re
 
 WORDS = dict()    # словарь с эмоциональными окрасками
 HOLIDAYS = dict()  # праздники на каждый день
@@ -565,7 +566,7 @@ def sms(bot, update):  # отвечает на /start
     time.sleep(SLEEP_TIME)
     bot.message.reply_text(
         "Меня зовут Кагуя Синомия. Давай поболтаем (чтобы увидеть всё, что я могу, напиши /help)", reply_markup=keyboard)
-    # update.bot.send_sticker(chat_id=update.message.chat_id, sticker='CAADAgADOQADfyesDlKEqOOd72VKAg')
+    # update.bot.reply_sticker(chat_id=update.message.chat_id, sticker='CAADAgADOQADfyesDlKEqOOd72VKAg')
     USERS[usr_id]['last_usage'] = time.time()
     write_users()
 
@@ -1671,6 +1672,7 @@ def get_pair_stats(usr_id):
     total_visited = 0
     total_conducted = 0
     stats_text = "Я все посчитала\n📊 Статистика посещаемости пар:\n\n"
+    overall_stats_text = ""
     for pair_name in total_pairs_stats:
         visit_count = pair_visit_stats.get(pair_name, 0)
         total_count = total_pairs_stats.get(pair_name, 0)
@@ -1687,13 +1689,13 @@ def get_pair_stats(usr_id):
     if total_conducted > 0:
         overall_missed = total_conducted - total_visited
         overall_missed_percent = (overall_missed / total_conducted) * 100
-        stats_text += f"📊 Общая статистика:\n"
-        stats_text += f"    Всего посещено: {total_visited}\n"
-        stats_text += f"    Всего проведено: {total_conducted}\n"
-        stats_text += f"    Всего проебано: {overall_missed} ({overall_missed_percent:.2f}%)\n"
+        overall_stats_text += f"📊 Общая статистика:\n"
+        overall_stats_text += f"    Всего посещено: {total_visited}\n"
+        overall_stats_text += f"    Всего проведено: {total_conducted}\n"
+        overall_stats_text += f"    Всего проебано: {overall_missed} ({overall_missed_percent:.2f}%)\n"
     else:
-        stats_text = "    Нет данных о проведенных парах.\n"
-    return stats_text
+        overall_stats_text = "    Нет данных о проведенных парах.\n"
+    return stats_text, overall_stats_text
 
 
 def send_pair_stats(bot, update):
@@ -1716,12 +1718,13 @@ def send_pair_stats(bot, update):
     time.sleep(SLEEP_TIME)
     bot.message.reply_text('Дай-ка подумать...')
     time.sleep(SLEEP_TIME)
-    stats = get_pair_stats(usr_id)
+    stats, overall_stats = get_pair_stats(usr_id)
     if not stats:
-        text = "Да я понятия не имею"
+        bot.message.reply_text("Да я понятия не имею")
     else:
-        text = stats
-    bot.message.reply_text(stats)
+        bot.message.reply_text(stats)
+        time.sleep(SLEEP_TIME)
+        bot.message.reply_text(overall_stats)
 
 
 def initialize_pair_stats(msg):
@@ -1805,16 +1808,24 @@ def schedule_checker():
 def handle_pair_response(bot, update):
     query = bot.callback_query
     usr_id = str(query.from_user.id)
-    pair_name = USERS[usr_id]['last_pair']
 
+    message_text = query.message.text
+
+    match = re.search(r'Ты был на паре (.+)\?', message_text)
+
+    if match:
+        pair_name = match.group(1)
+    else:
+        query.answer("Не удалось извлечь название пары.")
+        return
+
+    # Обработка ответа
     if query.data == 'yes':
         update_pair_stats(usr_id, pair_name, True)
     elif query.data == 'no':
         update_pair_stats(usr_id, pair_name, False)
 
     query.answer()
-    USERS[usr_id]['last_pair'] = None
-
     query.edit_message_text(text='Понятно')
 
 
