@@ -65,7 +65,7 @@ HELP_TEXT = """
 /disable_groups - отключить подсказки об указании своей группы
 
 Остальные функции ты найдёшь на нижней панели после прописывания команды /start.
-Если у тебя возникли какие-либо вопросы по использованию бота, пиши @laxzzz :)
+Если у тебя возникли какие-либо вопросы по использованию бота, пиши @aJLaxzzz :)
 """
 
 POSITIVE_QUESTION_ANSWERS = ['Да, сенпай!', 'Да)', 'Ага', 'Согласна))', 'Так точно!', 'Может быть)', 'Проверь и узнаешь)', 'Скорее да',
@@ -1729,10 +1729,8 @@ def send_pair_stats(bot, update):
 
 def initialize_pair_stats(msg):
     usr_id = get_id_bymsg(msg)
-    if 'pair_visit' not in USERS[usr_id]:
-        USERS[usr_id]['pair_visit'] = {}
-    if 'total_pairs' not in USERS[usr_id]:
-        USERS[usr_id]['total_pairs'] = {}
+    USERS[usr_id]['pair_visit'] = {}
+    USERS[usr_id]['total_pairs'] = {}
     for day, pairs in USERS[usr_id]['timetable'].items():
         for pair in pairs:
             pair_name = pair[0].strip()
